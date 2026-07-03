@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>報告書プレビュー｜訪問介護 申し送り作成ツール</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="app-header">
+  <h1>訪問介護 申し送り作成ツール</h1>
+  <div class="steps">
+    <div class="step done">1. ケア内容選択</div>
+    <div class="step active">2. 報告書プレビュー</div>
+    <div class="step">3. 申し送り15種類</div>
+  </div>
+</header>
+
+<div class="container">
+  <div id="emptyWarning" class="empty-warning" style="display:none;">
+    ケア内容が1件も選択されていません。<a href="index.html">Step1に戻って</a>実施したケアにチェックを入れてください。
+  </div>
+
+  <section class="card">
+    <h2>ケア報告書プレビュー</h2>
+    <p class="hint">Step1で選択した内容から自動生成しています。必要に応じて自由に編集できます（この内容は申し送り文には反映されず、報告書のみに使われます）。</p>
+    <textarea id="reportText"></textarea>
+    <div style="margin-top:10px; display:flex; gap:10px;">
+      <button type="button" class="secondary small" id="copyBtn">報告書をコピー</button>
+      <button type="button" class="ghost small" id="regenerateBtn">選択内容から再生成</button>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button type="button" class="ghost" id="backBtn">戻る（ケア内容選択）</button>
+    <button type="button" class="primary" id="nextBtn">次へ（申し送り15種類を作成）</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/itemDefs.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/reportBuilder.js"></script>
+<script src="js/step2.js"></script>
+</body>
+</html>
