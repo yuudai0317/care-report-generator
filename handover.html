@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>申し送り15種類｜訪問介護 申し送り作成ツール</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="app-header">
+  <h1>訪問介護 申し送り作成ツール</h1>
+  <div class="steps">
+    <div class="step done">1. ケア内容選択</div>
+    <div class="step done">2. 報告書プレビュー</div>
+    <div class="step active">3. 申し送り15種類</div>
+  </div>
+</header>
+
+<div class="container">
+  <div id="emptyWarning" class="empty-warning" style="display:none;">
+    ケア内容が1件も選択されていません。<a href="index.html">Step1に戻って</a>実施したケアにチェックを入れてください。
+  </div>
+
+  <section class="card">
+    <h2>申し送り文（15種類）</h2>
+    <p class="hint">同じケア内容から、書き方・並び順の異なる15種類の申し送り文を自動生成しました。用途に合わせてコピーしてお使いください。</p>
+  </section>
+
+  <div id="handoverList"></div>
+
+  <div class="actions">
+    <button type="button" class="ghost" id="backBtn">戻る（報告書プレビュー）</button>
+    <button type="button" class="secondary" id="startOverBtn">最初からやり直す</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/itemDefs.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/reportBuilder.js"></script>
+<script src="js/handoverTemplates.js"></script>
+<script src="js/step3.js"></script>
+</body>
+</html>
