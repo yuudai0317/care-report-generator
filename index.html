@@ -521,7 +521,13 @@ function scheduleSave(){
   setState('保存中…');
   saveTimer = setTimeout(saveNow, 800);
 }
-function setState(msg){ $('#saveState').textContent = msg; }
+/* 操作への返事は、直後の自動保存の知らせに消されないよう少し留める */
+var holdUntil = 0;
+function setState(msg, hold){
+  if(!hold && Date.now() < holdUntil) return;
+  if(hold) holdUntil = Date.now() + 2500;
+  $('#saveState').textContent = msg;
+}
 function saveNow(){
   if(!store){ setState('自動保存は使えません。書き出しで保存してください'); return; }
   var payload = JSON.stringify({
@@ -575,7 +581,7 @@ function esc(s){
 }
 function wrapSelection(before, after){
   var t = selectedText();
-  if(!inEditor() || !t){ setState('先に文字を選んでください'); return; }
+  if(!inEditor() || !t){ setState('先に文字を選んでください', true); return; }
   editor.focus();
   document.execCommand('insertHTML', false, before + esc(t) + after);
   stripStyles();
@@ -612,7 +618,7 @@ function replaceRangeWith(range, node){
 var rubyRange = null;
 function openRuby(){
   var t = selectedText();
-  if(!inEditor() || !t){ setState('ルビを振る文字を選んでください'); return; }
+  if(!inEditor() || !t){ setState('ルビを振る文字を選んでください', true); return; }
   rubyRange = window.getSelection().getRangeAt(0).cloneRange();
   $('#rubyBase').textContent = t;
   $('#rubyRead').value = '';
@@ -659,7 +665,7 @@ $('#btnBold').addEventListener('click', function(){ editor.focus(); document.exe
 $('#btnLine').addEventListener('click', function(){ editor.focus(); document.execCommand('underline'); scheduleSave(); });
 $('#btnClear').addEventListener('click', function(){
   var t = selectedText();
-  if(!inEditor() || !t){ setState('書式を消す範囲を選んでください'); return; }
+  if(!inEditor() || !t){ setState('書式を消す範囲を選んでください', true); return; }
   var range = window.getSelection().getRangeAt(0);
   var marked = [];
   var all = editor.querySelectorAll('ruby, em.bouten, span.tcy');
@@ -854,7 +860,7 @@ $('#btnTxt').addEventListener('click', function(){
   var text = (head ? head + '\n\n' : '') + body + '\n';
   text = text.replace(/\r?\n/g, '\r\n');
   download(new Blob(['﻿' + text], { type:'text/plain;charset=utf-8' }), docName() + '.txt');
-  setState('.txt を書き出しました');
+  setState('.txt を書き出しました', true);
 });
 $('#btnHtml').addEventListener('click', function(){
   var css = [
@@ -884,7 +890,7 @@ $('#btnHtml').addEventListener('click', function(){
     '<div class="sheet"><div id="doc"><h1>' + esc(head) + '</h1>\n' +
     editor.innerHTML + '\n</div></div>\n</body>\n</html>\n';
   download(new Blob([html], { type:'text/html;charset=utf-8' }), docName() + '.html');
-  setState('.html を書き出しました');
+  setState('.html を書き出しました', true);
 });
 $('#btnPrint').addEventListener('click', function(){ window.print(); });
 
@@ -900,7 +906,7 @@ $('#fileInput').addEventListener('change', function(){
     else importText(text);
     titleEl.value = f.name.replace(/\.(txt|html?)$/i, '');
     applyLayout(); scheduleSave(); updateCount();
-    setState('「' + f.name + '」を開きました');
+    setState('「' + f.name + '」を開きました', true);
   };
   reader.readAsText(f, 'utf-8');
   this.value = '';
