@@ -1,0 +1,27 @@
+# 縦組 — ビルド不要の静的サイト。リポジトリ直下の index.html をそのまま配信する。
+[build]
+  publish = "."
+
+# 本文を書き換えたら次のアクセスで反映されてほしいので HTML はキャッシュさせない。
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# リポジトリの説明文や設定ファイルは配信しない。
+[[redirects]]
+  from = "/README.md"
+  to = "/index.html"
+  status = 302
+
+[[redirects]]
+  from = "/netlify.toml"
+  to = "/index.html"
+  status = 302

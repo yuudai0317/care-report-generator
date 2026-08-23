@@ -55,11 +55,25 @@ open index.html          # macOS
 xdg-open index.html      # Linux
 ```
 
-### 公開（GitHub Pages）
+### 公開（Netlify）
 
-`.github/workflows/pages.yml` が `main` への push で Pages へデプロイします。初回のみ、
-リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** に
-変更してください。以後 `https://yuudai0317.github.io/care-report-generator/` で公開されます。
+`netlify.toml` を置いてあるので、ビルドコマンドの設定は要りません（リポジトリ直下をそのまま配信します）。
+
+**リポジトリと繋いで公開する（更新が自動で反映されます）**
+
+1. https://app.netlify.com/start を開く
+2. **Import an existing project** → **Deploy with GitHub** を選び、GitHub を認可する
+3. リポジトリ一覧から `yuudai0317/care-report-generator` を選ぶ
+4. **Branch to deploy** を選ぶ（`main`、またはこのまま `claude/tategumi-vertical-editor-art7l6` でも可）
+5. Build command と Publish directory は `netlify.toml` が指定するので触らず、**Deploy** を押す
+
+以後、そのブランチへ push するたびに自動で再デプロイされます。公開 URL は
+`https://<好きな名前>.netlify.app`（**Site configuration → Change site name** で変更できます）。
+
+**とりあえず今すぐ見たいだけなら**
+
+https://app.netlify.com/drop に `index.html` をドラッグ&ドロップするだけで、アカウント無しでも
+即座に URL が発行されます。GitHub と繋がないので、以後の更新は手動になります。
 
 ### 組版についての注意
 
