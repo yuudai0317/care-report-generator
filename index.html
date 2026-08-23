@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>縦書きエディタ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;700&family=Noto+Sans+JP:wght@400;700&display=swap">
+<link rel="stylesheet" href="assets/css/editor.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ========== タイトルバー ========== -->
+  <div class="titlebar">
+    <div class="titlebar__name">
+      <span class="titlebar__icon">縦</span>
+      <input id="docTitle" class="titlebar__input" type="text" value="無題の文書" spellcheck="false" aria-label="文書名">
+    </div>
+    <div class="titlebar__right">
+      <span id="saveState" class="savestate">未保存</span>
+    </div>
+  </div>
+
+  <!-- ========== リボン ========== -->
+  <div class="ribbon">
+    <div class="ribbon__tabs" role="tablist">
+      <button class="tab" data-tab="file" role="tab">ファイル</button>
+      <button class="tab is-active" data-tab="home" role="tab">ホーム</button>
+      <button class="tab" data-tab="insert" role="tab">挿入</button>
+      <button class="tab" data-tab="layout" role="tab">レイアウト</button>
+      <button class="tab" data-tab="view" role="tab">表示</button>
+    </div>
+
+    <!-- ---- ファイル ---- -->
+    <div class="ribbon__panel" data-panel="file">
+      <div class="group">
+        <div class="group__body">
+          <button class="btn btn--big" data-cmd="file-new"><b>新規</b><span>Ctrl+Alt+N</span></button>
+          <button class="btn btn--big" data-cmd="file-open"><b>開く</b><span>Ctrl+O</span></button>
+          <button class="btn btn--big" data-cmd="file-save"><b>保存</b><span>Ctrl+S</span></button>
+        </div>
+        <div class="group__label">ファイル</div>
+      </div>
+      <div class="group">
+        <div class="group__body">
+          <button class="btn btn--big" data-cmd="export-doc"><b>Word形式</b><span>.doc</span></button>
+          <button class="btn btn--big" data-cmd="export-html"><b>HTML</b><span>.html</span></button>
+          <button class="btn btn--big" data-cmd="export-txt"><b>テキスト</b><span>.txt</span></button>
+        </div>
+        <div class="group__label">書き出し</div>
+      </div>
+      <div class="group">
+        <div class="group__body">
+          <button class="btn btn--big" data-cmd="print"><b>印刷 / PDF</b><span>Ctrl+P</span></button>
+        </div>
+        <div class="group__label">印刷</div>
+      </div>
+    </div>
+
+    <!-- ---- ホーム ---- -->
+    <div class="ribbon__panel is-active" data-panel="home">
+      <div class="group">
+        <div class="group__body">
+          <button class="btn" data-cmd="undo" title="元に戻す (Ctrl+Z)">↩</button>
+          <button class="btn" data-cmd="redo" title="やり直し (Ctrl+Y)">↪</button>
+        </div>
+        <div class="group__label">元に戻す</div>
+      </div>
+
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <select id="fontFamily" class="ctl ctl--font" title="フォント">
+              <optgroup label="明朝体">
+                <option value="'Noto Serif JP','Yu Mincho','YuMincho','Hiragino Mincho ProN','MS PMincho','Noto Serif CJK JP','Source Han Serif JP','IPAexMincho','IPAPMincho',serif">游明朝 / Noto 明朝</option>
+                <option value="'Hiragino Mincho ProN','Yu Mincho','MS PMincho','Noto Serif CJK JP','IPAexMincho',serif">ヒラギノ明朝</option>
+                <option value="'MS Mincho','ＭＳ 明朝','Noto Serif CJK JP','IPAexMincho',serif">ＭＳ 明朝</option>
+                <option value="'BIZ UDPMincho','BIZ UDMincho','Noto Serif CJK JP','IPAexMincho',serif">BIZ UDP明朝</option>
+              </optgroup>
+              <optgroup label="ゴシック体">
+                <option value="'Noto Sans JP','Yu Gothic','YuGothic','Hiragino Kaku Gothic ProN','Meiryo','Noto Sans CJK JP','IPAexGothic','IPAPGothic',sans-serif">游ゴシック / Noto ゴシック</option>
+                <option value="'Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans CJK JP','IPAexGothic',sans-serif">ヒラギノ角ゴ</option>
+                <option value="'MS Gothic','ＭＳ ゴシック','Noto Sans Mono CJK JP','IPAGothic',monospace">ＭＳ ゴシック</option>
+                <option value="'BIZ UDPGothic','BIZ UDGothic','Noto Sans CJK JP','IPAexGothic',sans-serif">BIZ UDPゴシック</option>
+                <option value="Meiryo,'メイリオ','Noto Sans CJK JP','IPAexGothic',sans-serif">メイリオ</option>
+              </optgroup>
+            </select>
+            <select id="fontSize" class="ctl ctl--size" title="フォントサイズ">
+              <option>8</option><option>9</option><option>10</option>
+              <option selected>10.5</option><option>11</option><option>12</option>
+              <option>14</option><option>16</option><option>18</option>
+              <option>20</option><option>24</option><option>28</option><option>36</option>
+            </select>
+            <button class="btn" data-cmd="size-up" title="フォントサイズを大きくする">A<sup>＋</sup></button>
+            <button class="btn" data-cmd="size-down" title="フォントサイズを小さくする">A<sub>−</sub></button>
+          </div>
+          <div class="row">
+            <button class="btn btn--state" data-exec="bold" title="太字 (Ctrl+B)"><b>Ｂ</b></button>
+            <button class="btn btn--state" data-exec="italic" title="斜体 (Ctrl+I)"><i>Ｉ</i></button>
+            <button class="btn btn--state" data-exec="underline" title="下線 (Ctrl+U)"><u>Ｕ</u></button>
+            <button class="btn btn--state" data-exec="strikeThrough" title="取り消し線"><s>Ｓ</s></button>
+            <span class="sep"></span>
+            <label class="btn btn--color" title="文字色">
+              <span class="btn__glyph">Ａ</span>
+              <input type="color" id="foreColor" value="#111111">
+            </label>
+            <label class="btn btn--color" title="蛍光ペン">
+              <span class="btn__glyph btn__glyph--hl">Ａ</span>
+              <input type="color" id="hiliteColor" value="#ffe680">
+            </label>
+            <button class="btn" data-cmd="clear-format" title="書式のクリア">✕書式</button>
+          </div>
+        </div>
+        <div class="group__label">フォント</div>
+      </div>
+
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <button class="btn" data-cmd="ruby" title="ルビ（ふりがな）">ルビ</button>
+            <button class="btn" data-cmd="tcy" title="縦中横（半角数字などを横に組む）">縦中横</button>
+            <button class="btn" data-cmd="emphasis" title="圏点（傍点）">圏点</button>
+          </div>
+          <div class="row">
+            <button class="btn" data-cmd="warichu" title="割注（小さな二行の注記）">割注</button>
+            <button class="btn" data-cmd="upright" title="正立（半角文字を縦向きに）">正立</button>
+          </div>
+        </div>
+        <div class="group__label">縦書き書式</div>
+      </div>
+
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <button class="btn btn--state" data-exec="justifyLeft" data-align-v="上揃え" title="行頭（上）揃え">⇤</button>
+            <button class="btn btn--state" data-exec="justifyCenter" title="中央揃え">⇔</button>
+            <button class="btn btn--state" data-exec="justifyRight" title="行末（下）揃え">⇥</button>
+            <button class="btn btn--state" data-exec="justifyFull" title="両端揃え">≡</button>
+          </div>
+          <div class="row">
+            <button class="btn btn--state" data-exec="insertUnorderedList" title="箇条書き">・一覧</button>
+            <button class="btn btn--state" data-exec="insertOrderedList" title="段落番号">1.一覧</button>
+            <button class="btn" data-exec="indent" title="インデントを増やす">→|</button>
+            <button class="btn" data-exec="outdent" title="インデントを減らす">|←</button>
+          </div>
+        </div>
+        <div class="group__label">段落</div>
+      </div>
+
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <label class="ctl-label">行間</label>
+            <select id="lineHeight" class="ctl">
+              <option value="1.0">1.0</option>
+              <option value="1.2">1.2</option>
+              <option value="1.5">1.5</option>
+              <option value="1.75">1.75</option>
+              <option value="1.9" selected>1.9（標準）</option>
+              <option value="2.0">2.0</option>
+              <option value="2.5">2.5</option>
+              <option value="3.0">3.0</option>
+            </select>
+          </div>
+          <div class="row">
+            <label class="ctl-label">字間</label>
+            <select id="letterSpacing" class="ctl">
+              <option value="0" selected>0</option>
+              <option value="0.05">狭い (0.05em)</option>
+              <option value="0.1">やや広い (0.1em)</option>
+              <option value="0.2">広い (0.2em)</option>
+              <option value="0.4">とても広い (0.4em)</option>
+            </select>
+          </div>
+        </div>
+        <div class="group__label">文字組み</div>
+      </div>
+
+      <div class="group">
+        <div class="group__body">
+          <button class="btn btn--big" data-cmd="find"><b>検索と置換</b><span>Ctrl+F</span></button>
+        </div>
+        <div class="group__label">編集</div>
+      </div>
+    </div>
+
+    <!-- ---- 挿入 ---- -->
+    <div class="ribbon__panel" data-panel="insert">
+      <div class="group">
+        <div class="group__body">
+          <button class="btn btn--big" data-cmd="page-break"><b>改ページ</b><span>Ctrl+Enter</span></button>
+          <button class="btn btn--big" data-cmd="line-break"><b>改行</b><span>Shift+Enter</span></button>
+          <button class="btn btn--big" data-cmd="hr"><b>区切り線</b><span>罫線</span></button>
+        </div>
+        <div class="group__label">区切り</div>
+      </div>
+      <div class="group">
+        <div class="group__body">
+          <button class="btn btn--big" data-cmd="ins-date"><b>日付</b><span>令和/西暦</span></button>
+          <button class="btn btn--big" data-cmd="ins-time"><b>時刻</b><span>現在時刻</span></button>
+        </div>
+        <div class="group__label">日付と時刻</div>
+      </div>
+      <div class="group">
+        <div class="group__body">
+          <div class="charpalette" id="charPalette">
+            <button data-char="　">□</button>
+            <button data-char="、">、</button><button data-char="。">。</button>
+            <button data-char="「">「</button><button data-char="」">」</button>
+            <button data-char="『">『</button><button data-char="』">』</button>
+            <button data-char="（">（</button><button data-char="）">）</button>
+            <button data-char="〜">〜</button><button data-char="―">―</button>
+            <button data-char="…">…</button><button data-char="※">※</button>
+            <button data-char="〇">〇</button><button data-char="々">々</button>
+            <button data-char="①">①</button><button data-char="②">②</button>
+            <button data-char="③">③</button><button data-char="④">④</button>
+          </div>
+        </div>
+        <div class="group__label">記号と特殊文字</div>
+      </div>
+    </div>
+
+    <!-- ---- レイアウト ---- -->
+    <div class="ribbon__panel" data-panel="layout">
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <label class="ctl-label">文字方向</label>
+            <select id="writingMode" class="ctl">
+              <option value="vertical" selected>縦書き</option>
+              <option value="horizontal">横書き</option>
+            </select>
+          </div>
+          <div class="row">
+            <label class="ctl-label">用紙</label>
+            <select id="paperSize" class="ctl">
+              <option value="a4" selected>A4（210×297mm）</option>
+              <option value="b5">B5（182×257mm）</option>
+              <option value="a5">A5（148×210mm）</option>
+              <option value="b4">B4（257×364mm）</option>
+              <option value="letter">レター（216×279mm）</option>
+              <option value="hagaki">はがき（100×148mm）</option>
+            </select>
+          </div>
+          <div class="row">
+            <label class="ctl-label">印刷の向き</label>
+            <select id="orientation" class="ctl">
+              <option value="portrait" selected>縦</option>
+              <option value="landscape">横</option>
+            </select>
+          </div>
+        </div>
+        <div class="group__label">ページ設定</div>
+      </div>
+
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <label class="ctl-label">余白</label>
+            <select id="marginPreset" class="ctl">
+              <option value="normal" selected>標準（20mm）</option>
+              <option value="narrow">狭い（12mm）</option>
+              <option value="wide">広い（30mm）</option>
+              <option value="word">Word既定（上下35/30・左右30mm）</option>
+              <option value="custom">ユーザー設定</option>
+            </select>
+          </div>
+          <div class="row row--margins">
+            <label>上<input type="number" id="mTop" class="ctl ctl--num" value="20" min="0" max="80" step="1"></label>
+            <label>下<input type="number" id="mBottom" class="ctl ctl--num" value="20" min="0" max="80" step="1"></label>
+            <label>右<input type="number" id="mRight" class="ctl ctl--num" value="20" min="0" max="80" step="1"></label>
+            <label>左<input type="number" id="mLeft" class="ctl ctl--num" value="20" min="0" max="80" step="1"></label>
+          </div>
+        </div>
+        <div class="group__label">余白（mm）</div>
+      </div>
+
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <label class="switch"><input type="checkbox" id="genkoMode"><span>原稿用紙モード</span></label>
+          </div>
+          <div class="row">
+            <span class="hint" id="gridInfo">—</span>
+          </div>
+          <div class="row">
+            <span class="hint">※等幅フォントを選ぶとマス目に揃います</span>
+          </div>
+        </div>
+        <div class="group__label">原稿用紙</div>
+      </div>
+    </div>
+
+    <!-- ---- 表示 ---- -->
+    <div class="ribbon__panel" data-panel="view">
+      <div class="group">
+        <div class="group__body group__body--rows">
+          <div class="row">
+            <label class="switch"><input type="checkbox" id="showGuides" checked><span>ページ罫線</span></label>
+          </div>
+          <div class="row">
+            <label class="switch"><input type="checkbox" id="showMarks"><span>編集記号（改行）</span></label>
+          </div>
+        </div>
+        <div class="group__label">表示</div>
+      </div>
+      <div class="group">
+        <div class="group__body">
+          <button class="btn" data-cmd="zoom-out">−</button>
+          <span class="zoomval" id="zoomVal">100%</span>
+          <button class="btn" data-cmd="zoom-in">＋</button>
+          <button class="btn" data-cmd="zoom-reset">100%</button>
+        </div>
+        <div class="group__label">ズーム</div>
+      </div>
+      <div class="group">
+        <div class="group__body">
+          <label class="switch"><input type="checkbox" id="focusMode"><span>集中モード</span></label>
+        </div>
+        <div class="group__label">モード</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 検索と置換 ========== -->
+  <div class="findbar" id="findBar" hidden>
+    <input type="text" id="findInput" class="ctl" placeholder="検索する文字列">
+    <input type="text" id="replaceInput" class="ctl" placeholder="置換後の文字列">
+    <button class="btn" data-cmd="find-prev">前へ</button>
+    <button class="btn" data-cmd="find-next">次へ</button>
+    <button class="btn" data-cmd="replace-one">置換</button>
+    <button class="btn" data-cmd="replace-all">すべて置換</button>
+    <span class="findcount" id="findCount"></span>
+    <button class="btn btn--close" data-cmd="find-close">✕</button>
+  </div>
+
+  <!-- ========== 用紙 ========== -->
+  <div class="workspace" id="workspace">
+    <div class="scroller" id="scroller">
+      <div class="sheet" id="sheet">
+        <div class="editor" id="editor" contenteditable="true" spellcheck="false"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 印刷用のページ（印刷時にだけ組み立てる） ========== -->
+  <div class="printarea" id="printArea" aria-hidden="true"></div>
+
+  <!-- ========== ステータスバー ========== -->
+  <div class="statusbar">
+    <span id="stPage">1 / 1 ページ</span>
+    <span class="statusbar__sep"></span>
+    <span id="stChars">0 文字</span>
+    <span class="statusbar__sep"></span>
+    <span id="stLines">0 段落</span>
+    <span class="statusbar__sep"></span>
+    <span id="stMode">縦書き・A4 縦</span>
+    <span class="statusbar__spacer"></span>
+    <input type="range" id="zoomRange" min="50" max="200" step="10" value="100" title="ズーム">
+    <span id="stZoom">100%</span>
+  </div>
+</div>
+
+<!-- ========== モーダル ========== -->
+<div class="modal" id="modal" hidden>
+  <div class="modal__box" role="dialog" aria-modal="true">
+    <div class="modal__title" id="modalTitle">タイトル</div>
+    <div class="modal__body" id="modalBody"></div>
+    <div class="modal__foot">
+      <button class="btn btn--primary" id="modalOk">OK</button>
+      <button class="btn" id="modalCancel">キャンセル</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+<input type="file" id="fileInput" accept=".json,.txt,.html,.htm,.doc" hidden>
+<style id="pageStyle"></style>
+
+<script src="assets/js/editor.js"></script>
+</body>
+</html>
