@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>縦組 — 縦書きテキストエディタ</title>
+<meta name="description" content="ブラウザだけで動く縦書き原稿用紙エディタ。ルビ・傍点・縦中横に対応し、青空文庫記法で書き出せます。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%2322303f'/><text x='16' y='23' font-size='20' text-anchor='middle' fill='%23faf7ef' font-family='serif'>縦</text></svg>">
+<style>
+:root{
+  --sumi:#16161a;
+  --kami:#faf7ef;
+  --ai:#22303f;
+  --ai-hi:#31465e;
+  --kei:#b6c4b2;
+  --shu:#b03a2e;
+  --nezumi:#6f7178;
+  --band:#eeeade;
+  --desk:#d6d8d1;
+
+  --cell:28px;
+  --chars:20;
+  --lines:20;
+  --lh:1;
+  --kugiri:rgba(176,58,46,.42);
+  --fs:calc(var(--cell) * .86);
+  --gap:calc(var(--cell) - var(--fs));
+
+  --mincho:"Hiragino Mincho ProN","Yu Mincho","YuMincho","Noto Serif JP","MS PMincho",serif;
+  --gothic:"Hiragino Kaku Gothic ProN","Yu Gothic","YuGothic","Noto Sans JP","Meiryo",sans-serif;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  display:flex;
+  flex-direction:column;
+  background:var(--desk);
+  color:var(--sumi);
+  font-family:var(--gothic);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 上段バー ---------- */
+.bar{
+  display:flex;align-items:center;gap:14px;
+  padding:0 14px;height:46px;flex:0 0 auto;
+  background:var(--ai);color:var(--kami);
+}
+.wordmark{
+  font-family:var(--mincho);
+  font-size:17px;letter-spacing:.34em;
+  padding-right:12px;margin-right:-2px;
+  border-right:1px solid rgba(250,247,239,.22);
+  position:relative;white-space:nowrap;
+}
+.wordmark::after{
+  content:"";position:absolute;right:-1px;top:50%;
+  width:1px;height:9px;background:var(--shu);transform:translateY(-50%);
+}
+#title{
+  flex:1 1 auto;min-width:60px;
+  background:transparent;border:0;border-bottom:1px solid transparent;
+  color:var(--kami);font-family:var(--mincho);font-size:15px;letter-spacing:.06em;
+  padding:4px 2px;
+}
+#title:focus{outline:0;border-bottom-color:var(--shu)}
+#title::placeholder{color:rgba(250,247,239,.4)}
+.bar .actions{display:flex;gap:6px;flex:0 0 auto}
+.bar button{
+  background:transparent;border:1px solid rgba(250,247,239,.28);
+  color:var(--kami);font-family:var(--gothic);font-size:12px;letter-spacing:.08em;
+  padding:5px 10px;border-radius:2px;cursor:pointer;white-space:nowrap;
+}
+.bar button:hover{background:var(--ai-hi)}
+.bar button[aria-pressed="true"]{background:var(--shu);border-color:var(--shu)}
+
+/* ---------- 書式バー ---------- */
+.tools{
+  display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+  padding:7px 12px;flex:0 0 auto;
+  background:var(--band);border-bottom:1px solid #cfc9b8;
+}
+.tools button,.tools select{
+  font-family:var(--gothic);font-size:12px;letter-spacing:.06em;
+  color:var(--sumi);background:#fbf9f3;border:1px solid #c8c2b1;
+  padding:5px 9px;border-radius:2px;cursor:pointer;
+}
+.tools button:hover{background:#fff;border-color:var(--ai)}
+.tools button[aria-pressed="true"]{
+  background:var(--ai);border-color:var(--ai);color:var(--kami);
+}
+.tools select{padding:4px 6px}
+.tools select:disabled{opacity:.4;cursor:not-allowed}
+.tools input[type="number"]{
+  font-family:var(--gothic);font-size:12px;width:52px;padding:5px 4px 5px 7px;
+  border:1px solid #c8c2b1;border-radius:2px;background:#fbf9f3;color:var(--sumi);
+  font-variant-numeric:tabular-nums;
+}
+.tools input[type="number"]:focus{outline:0;border-color:var(--shu)}
+.tools .unit{font-size:11px;color:var(--nezumi);margin:0 6px 0 2px}
+.tools .sep{width:1px;height:20px;background:#cfc9b8;margin:0 7px}
+.tools label{font-size:11px;color:var(--nezumi);letter-spacing:.08em;margin-right:2px}
+
+/* ---------- 用紙 ---------- */
+.desk{
+  flex:1 1 auto;overflow:auto;padding:26px 24px 30px;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(34,48,63,.07) 1px, transparent 1.2px) 0 0/7px 7px,
+    var(--desk);
+}
+.sheet{
+  width:max-content;
+  background:var(--kami);
+  padding:32px 36px;
+  border:1px solid #cfcabc;
+  box-shadow:0 20px 42px -28px rgba(20,28,38,.6);
+  position:relative;
+}
+.desk.tate .sheet{margin-left:auto}
+.desk.yoko .sheet{margin:0 auto}
+/* 綴じ側（縦組は右）を示す朱の細線 */
+.desk.tate .sheet::after{
+  content:"";position:absolute;top:0;bottom:0;right:12px;width:1px;
+  background:linear-gradient(to bottom,transparent,rgba(176,58,46,.5) 12%,rgba(176,58,46,.5) 88%,transparent);
+}
+
+#editor{
+  font-family:var(--mincho);
+  font-size:var(--fs);
+  letter-spacing:var(--gap);
+  line-height:calc(var(--cell) * var(--lh));
+  color:var(--sumi);
+  caret-color:var(--shu);
+  outline:0;
+  background-repeat:repeat;
+  background-origin:content-box;
+  background-clip:content-box;
+}
+#editor.tate{
+  writing-mode:vertical-rl;
+  -webkit-writing-mode:vertical-rl;
+  text-orientation:mixed;
+  height:calc(var(--cell) * var(--chars) + var(--gap));
+  width:max-content;
+  min-width:calc(var(--cell) * var(--lines));
+}
+#editor.yoko{
+  writing-mode:horizontal-tb;
+  -webkit-writing-mode:horizontal-tb;
+  width:calc(var(--cell) * var(--chars) + var(--gap));
+  min-height:calc(var(--cell) * var(--lines));
+}
+/* ページ区切り（行数ごと） */
+#editor.tate{
+  background-image:
+    repeating-linear-gradient(to left, var(--kugiri) 0 1px, transparent 1px calc(var(--cell) * var(--lines)));
+  background-position:100% calc(var(--gap) / -2);
+}
+#editor.yoko{
+  background-image:
+    repeating-linear-gradient(to bottom, var(--kugiri) 0 1px, transparent 1px calc(var(--cell) * var(--lines)));
+  background-position:calc(var(--gap) / -2) 0;
+}
+#editor.tate.grid{
+  background-image:
+    repeating-linear-gradient(to left, var(--kugiri) 0 1px, transparent 1px calc(var(--cell) * var(--lines))),
+    repeating-linear-gradient(to left, var(--kei) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(to bottom, var(--kei) 0 1px, transparent 1px var(--cell));
+}
+#editor.yoko.grid{
+  background-image:
+    repeating-linear-gradient(to bottom, var(--kugiri) 0 1px, transparent 1px calc(var(--cell) * var(--lines))),
+    repeating-linear-gradient(to bottom, var(--kei) 0 1px, transparent 1px var(--cell)),
+    repeating-linear-gradient(to right, var(--kei) 0 1px, transparent 1px var(--cell));
+}
+#editor p{margin:0}
+#editor.indent p{text-indent:var(--cell)}
+#editor:empty::before,
+#editor > p:only-child:empty::before,
+#editor > p:only-child:has(> br:only-child)::before{
+  content:"ここから書きはじめる";
+  color:#b6b0a0;
+  text-indent:0;
+}
+#editor ::selection{background:rgba(49,70,94,.22)}
+
+ruby{ruby-position:over;-webkit-ruby-position:before}
+rt{
+  font-size:.5em;letter-spacing:.02em;line-height:1;
+  font-family:var(--mincho);color:var(--sumi);
+}
+em.bouten{
+  font-style:normal;
+  text-emphasis:filled sesame currentColor;
+  -webkit-text-emphasis:filled sesame currentColor;
+  text-emphasis-position:over right;
+  -webkit-text-emphasis-position:over right;
+}
+span.tcy{text-combine-upright:all;-webkit-text-combine:horizontal;letter-spacing:0}
+mark.hit{background:rgba(176,58,46,.22);color:inherit}
+
+/* ---------- 状態バー ---------- */
+.status{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  flex:0 0 auto;padding:0 14px;height:30px;
+  background:var(--ai);color:rgba(250,247,239,.82);
+  font-size:11.5px;letter-spacing:.1em;font-variant-numeric:tabular-nums;
+}
+.status .sheets{color:var(--kami)}
+
+/* ---------- 検索置換 ---------- */
+.find{
+  display:none;align-items:center;gap:6px;flex-wrap:wrap;
+  padding:8px 12px;background:#e3ded0;border-bottom:1px solid #cfc9b8;flex:0 0 auto;
+}
+.find.open{display:flex}
+.find input{
+  font-family:var(--gothic);font-size:12px;padding:5px 8px;
+  border:1px solid #c8c2b1;border-radius:2px;background:#fbf9f3;color:var(--sumi);width:150px;
+}
+.find input:focus{outline:0;border-color:var(--shu)}
+.find button{
+  font-size:12px;padding:5px 9px;border:1px solid #c8c2b1;background:#fbf9f3;
+  border-radius:2px;cursor:pointer;color:var(--sumi);
+}
+.find button:hover{background:#fff;border-color:var(--ai)}
+.find .note{font-size:11px;color:var(--nezumi);letter-spacing:.06em}
+
+/* ---------- ルビ入力 ---------- */
+.veil{
+  display:none;position:fixed;inset:0;background:rgba(22,22,26,.42);
+  align-items:center;justify-content:center;z-index:20;
+}
+.veil.open{display:flex}
+.dialog{
+  background:var(--kami);border:1px solid #cfcabc;border-radius:3px;
+  padding:20px 22px;width:min(340px,90vw);
+  box-shadow:0 24px 50px -20px rgba(20,28,38,.6);
+}
+.dialog h2{
+  margin:0 0 14px;font-family:var(--mincho);font-size:15px;
+  letter-spacing:.2em;font-weight:400;
+  border-bottom:1px solid var(--kei);padding-bottom:8px;
+}
+.dialog .base{font-family:var(--mincho);font-size:18px;margin-bottom:10px;letter-spacing:.1em}
+.dialog input{
+  width:100%;font-family:var(--mincho);font-size:15px;padding:7px 9px;
+  border:1px solid #c8c2b1;border-radius:2px;background:#fff;color:var(--sumi);
+}
+.dialog input:focus{outline:0;border-color:var(--shu)}
+.dialog .row{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.dialog button{
+  font-family:var(--gothic);font-size:12px;letter-spacing:.08em;
+  padding:6px 14px;border-radius:2px;cursor:pointer;
+  border:1px solid #c8c2b1;background:#fbf9f3;color:var(--sumi);
+}
+.dialog button.primary{background:var(--ai);border-color:var(--ai);color:var(--kami)}
+
+/* ---------- 集中モード ---------- */
+body.focusmode .tools{display:none}
+body.focusmode .bar{opacity:.25;transition:opacity .25s}
+body.focusmode .bar:hover,body.focusmode .bar:focus-within{opacity:1}
+
+@media (max-width:640px){
+  .wordmark{font-size:15px;letter-spacing:.22em;padding-right:8px}
+  .bar{gap:8px;padding:0 8px}
+  .tools{padding:6px 8px;gap:3px}
+  .tools .sep{margin:0 3px}
+  .desk{padding:14px 10px 20px}
+  .sheet{padding:20px 22px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+@media print{
+  .bar,.tools,.status,.find,.veil{display:none!important}
+  body{background:#fff}
+  .desk{overflow:visible;padding:0;background:#fff}
+  .sheet{border:0;box-shadow:none;padding:0;margin:0;background:#fff}
+  .desk.tate .sheet::after{display:none}
+  #editor{background-image:none!important}
+  @page{size:A4 portrait;margin:18mm 16mm}
+}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <span class="wordmark">縦組</span>
+  <input id="title" type="text" placeholder="無題の原稿" spellcheck="false">
+  <span class="actions">
+    <button id="btnFocus" aria-pressed="false">集中</button>
+    <button id="btnOpen">開く</button>
+    <button id="btnTxt">.txt で書き出す</button>
+    <button id="btnHtml">.html で書き出す</button>
+    <button id="btnPrint">印刷</button>
+  </span>
+</div>
+
+<div class="tools">
+  <button id="btnRuby">ルビ</button>
+  <button id="btnBouten">傍点</button>
+  <button id="btnTcy">縦中横</button>
+  <button id="btnBold">太字</button>
+  <button id="btnLine">傍線</button>
+  <button id="btnClear">書式を消す</button>
+  <span class="sep"></span>
+  <button id="btnDir" aria-pressed="true">縦組</button>
+  <button id="btnGrid" aria-pressed="true">原稿用紙</button>
+  <button id="btnIndent" aria-pressed="true">字下げ</button>
+  <span class="sep"></span>
+  <label for="numChars">文字数</label>
+  <input id="numChars" type="number" min="4" max="80" step="1" value="20"><span class="unit">字／行</span>
+  <label for="numLines">行数</label>
+  <input id="numLines" type="number" min="4" max="80" step="1" value="20"><span class="unit">行／頁</span>
+  <select id="selPreset" title="よく使う組み方">
+    <option value="">体裁を選ぶ</option>
+    <option value="20,20">原稿用紙 20×20</option>
+    <option value="40,40">投稿用 40×40</option>
+    <option value="42,16">文庫判 42×16</option>
+    <option value="43,17">新書判 43×17</option>
+    <option value="30,25">四六判 30×25</option>
+  </select>
+  <span class="sep"></span>
+  <label for="selSize">文字</label>
+  <select id="selSize">
+    <option value="22">小</option>
+    <option value="28">中</option>
+    <option value="34">大</option>
+    <option value="42">特大</option>
+  </select>
+  <label for="selLh">行間</label>
+  <select id="selLh">
+    <option value="1">詰</option>
+    <option value="1.4">標準</option>
+    <option value="1.8">広</option>
+  </select>
+  <span class="sep"></span>
+  <button id="btnFind">検索・置換</button>
+</div>
+
+<div class="find" id="findBar">
+  <input id="findText" type="text" placeholder="検索する文字">
+  <input id="replText" type="text" placeholder="置き換える文字">
+  <button id="btnNext">次を検索</button>
+  <button id="btnRepl">置換</button>
+  <button id="btnReplAll">すべて置換</button>
+  <span class="note" id="findNote"></span>
+  <button id="btnFindClose">閉じる</button>
+</div>
+
+<div class="desk tate" id="desk">
+  <div class="sheet" id="sheet">
+    <div id="editor" class="tate grid indent" contenteditable="true" spellcheck="false"><p><br></p></div>
+  </div>
+</div>
+
+<div class="status">
+  <span><span id="cCount">0</span>字　<span id="cLines">0</span>行　<span id="cPages">1</span>頁　／　<span class="sheets" id="cSheets">0.0</span>枚（<span id="cUnit">400</span>字詰）　／　<span id="cPara">0</span>段落</span>
+  <span id="saveState">—</span>
+</div>
+
+<div class="veil" id="rubyVeil">
+  <div class="dialog">
+    <h2>ルビを振る</h2>
+    <div class="base" id="rubyBase"></div>
+    <input id="rubyRead" type="text" placeholder="よみ（ひらがな・カタカナ）" spellcheck="false">
+    <div class="row">
+      <button id="rubyCancel">やめる</button>
+      <button id="rubyOk" class="primary">ルビを振る</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".txt,.html,.htm,text/plain,text/html" style="display:none">
+
+<script>
+(function(){
+'use strict';
+
+var $ = function(s){ return document.querySelector(s); };
+var editor = $('#editor'), desk = $('#desk'), titleEl = $('#title');
+var root = document.documentElement;
+var STORE_KEY = 'tategumi:doc';
+
+/* 保存先。Artifact 実行時は window.storage、通常は localStorage を使う。 */
+var store = (function(){
+  if(typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function'){
+    return window.storage;
+  }
+  try{
+    var probe = 'tategumi:probe';
+    localStorage.setItem(probe, '1');
+    localStorage.removeItem(probe);
+    return {
+      get: function(k){ var v = localStorage.getItem(k); return v === null ? null : { value:v }; },
+      set: function(k, v){ localStorage.setItem(k, v); }
+    };
+  }catch(e){ return null; }
+})();
+
+var state = { title:'', tate:true, grid:true, indent:true, chars:20, lines:20, cell:28, lh:1.4 };
+var composing = false;
+
+try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch(e){}
+try { document.execCommand('styleWithCSS', false, false); } catch(e){}
+
+/* ===== 体裁の反映 ===== */
+function applyLayout(){
+  state.chars = clampNum(state.chars, 4, 80, 20);
+  state.lines = clampNum(state.lines, 4, 80, 20);
+  root.style.setProperty('--cell', state.cell + 'px');
+  root.style.setProperty('--chars', String(state.chars));
+  root.style.setProperty('--lines', String(state.lines));
+  root.style.setProperty('--lh', state.grid ? '1' : String(state.lh));
+
+  editor.classList.toggle('tate', state.tate);
+  editor.classList.toggle('yoko', !state.tate);
+  editor.classList.toggle('grid', state.grid);
+  editor.classList.toggle('indent', state.indent);
+  desk.classList.toggle('tate', state.tate);
+  desk.classList.toggle('yoko', !state.tate);
+
+  $('#btnDir').textContent = state.tate ? '縦組' : '横組';
+  $('#btnDir').setAttribute('aria-pressed', String(state.tate));
+  $('#btnGrid').setAttribute('aria-pressed', String(state.grid));
+  $('#btnIndent').setAttribute('aria-pressed', String(state.indent));
+  $('#numChars').value = String(state.chars);
+  $('#numLines').value = String(state.lines);
+  $('#selPreset').value = presetValue();
+  $('#selSize').value = String(state.cell);
+  $('#selLh').value = String(state.lh);
+  $('#selLh').disabled = state.grid;
+}
+function clampNum(v, min, max, fallback){
+  v = Math.round(Number(v));
+  if(!isFinite(v) || isNaN(v)) return fallback;
+  return Math.min(max, Math.max(min, v));
+}
+function presetValue(){
+  var v = state.chars + ',' + state.lines;
+  var opts = $('#selPreset').options;
+  for(var i = 0; i < opts.length; i++){ if(opts[i].value === v) return v; }
+  return '';
+}
+
+/* ===== 文字列化（青空文庫記法つき） ===== */
+function toPlain(node, notation){
+  var out = '', i, ch, tag;
+  for(i = 0; i < node.childNodes.length; i++){
+    ch = node.childNodes[i];
+    if(ch.nodeType === 3){ out += ch.data; continue; }
+    if(ch.nodeType !== 1) continue;
+    tag = ch.tagName;
+    if(tag === 'BR'){ out += '\n'; continue; }
+    if(tag === 'RUBY'){
+      var base = '', read = '';
+      for(var j = 0; j < ch.childNodes.length; j++){
+        var k = ch.childNodes[j];
+        if(k.nodeType === 1 && k.tagName === 'RT'){ read += k.textContent; continue; }
+        if(k.nodeType === 1 && k.tagName === 'RP') continue; /* 括弧は読みに含めない */
+        base += k.textContent;
+      }
+      out += notation ? ('｜' + base + '《' + read + '》') : base;
+      continue;
+    }
+    if(tag === 'EM' && ch.classList.contains('bouten')){
+      /* 青空文庫記法は「本文のあとに注記」の順に置く */
+      out += notation ? (ch.textContent + '［＃「' + ch.textContent + '」に傍点］') : ch.textContent;
+      continue;
+    }
+    if(tag === 'P' || tag === 'DIV'){
+      out += toPlain(ch, notation) + '\n';
+      continue;
+    }
+    out += toPlain(ch, notation);
+  }
+  return out;
+}
+function plainText(notation){
+  return toPlain(editor, notation).replace(/\n+$/, '');
+}
+
+/* ===== 集計 ===== */
+var countTimer = null;
+function scheduleCount(){
+  clearTimeout(countTimer);
+  countTimer = setTimeout(updateCount, 150);
+}
+function usedLines(){
+  try{
+    var r = document.createRange();
+    r.selectNodeContents(editor);
+    var box = r.getBoundingClientRect();
+    var span = state.tate ? box.width : box.height;
+    return Math.max(1, Math.round(span / state.cell));
+  }catch(e){ return 1; }
+}
+function updateCount(){
+  var t = plainText(false);
+  var chars = t.replace(/\n/g, '').length;
+  var paras = t.split('\n').filter(function(s){ return s.trim() !== ''; }).length;
+  var unit = state.chars * state.lines;
+  var lines = usedLines();
+  $('#cCount').textContent = chars.toLocaleString('ja-JP');
+  $('#cLines').textContent = lines.toLocaleString('ja-JP');
+  $('#cPages').textContent = String(Math.max(1, Math.ceil(lines / state.lines)));
+  $('#cSheets').textContent = (chars / unit).toFixed(1);
+  $('#cUnit').textContent = String(unit);
+  $('#cPara').textContent = String(paras);
+}
+
+/* ===== 保存 ===== */
+var saveTimer = null;
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  setState('保存中…');
+  saveTimer = setTimeout(saveNow, 800);
+}
+function setState(msg){ $('#saveState').textContent = msg; }
+function saveNow(){
+  if(!store){ setState('自動保存は使えません。書き出しで保存してください'); return; }
+  var payload = JSON.stringify({
+    v:1, html:editor.innerHTML, title:titleEl.value,
+    tate:state.tate, grid:state.grid, indent:state.indent,
+    chars:state.chars, lines:state.lines, cell:state.cell, lh:state.lh
+  });
+  Promise.resolve(store.set(STORE_KEY, payload)).then(function(){
+    var d = new Date();
+    setState('自動保存しました ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'));
+  }).catch(function(){
+    setState('保存できませんでした。書き出しで保存してください');
+  });
+}
+function loadSaved(){
+  if(!store){ setState('自動保存は使えません。書き出しで保存してください'); applyLayout(); updateCount(); return; }
+  Promise.resolve(store.get(STORE_KEY)).then(function(res){
+    if(!res || !res.value) throw new Error('empty');
+    var d = JSON.parse(res.value);
+    if(d.html) editor.innerHTML = d.html;
+    titleEl.value = d.title || '';
+    if(typeof d.tate === 'boolean') state.tate = d.tate;
+    if(typeof d.grid === 'boolean') state.grid = d.grid;
+    if(typeof d.indent === 'boolean') state.indent = d.indent;
+    if(d.chars) state.chars = +d.chars;
+    else if(d.rows) state.chars = +d.rows; /* 旧形式 */
+    if(d.lines) state.lines = +d.lines;
+    if(d.cell) state.cell = +d.cell;
+    if(d.lh) state.lh = +d.lh;
+    setState('前回の続きを開きました');
+  }).catch(function(){
+    setState('新しい原稿');
+  }).then(function(){
+    applyLayout(); updateCount();
+  });
+}
+
+/* ===== 書式 ===== */
+function inEditor(){
+  var sel = window.getSelection();
+  if(!sel || sel.rangeCount === 0) return false;
+  return editor.contains(sel.getRangeAt(0).commonAncestorContainer);
+}
+function selectedText(){
+  var sel = window.getSelection();
+  if(!sel || sel.rangeCount === 0) return '';
+  return sel.toString();
+}
+function esc(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function wrapSelection(before, after){
+  var t = selectedText();
+  if(!inEditor() || !t){ setState('先に文字を選んでください'); return; }
+  editor.focus();
+  document.execCommand('insertHTML', false, before + esc(t) + after);
+  stripStyles();
+  scheduleSave(); scheduleCount();
+}
+/* execCommand が付けてしまう見た目維持用の style 属性を落とす */
+function stripStyles(){
+  var els = editor.querySelectorAll('em.bouten[style], span.tcy[style], ruby[style], rt[style], rp[style]');
+  for(var i = 0; i < els.length; i++) els[i].removeAttribute('style');
+}
+
+/* ----- 選択範囲の置き換え（Chrome の insertHTML は <ruby> を壊すため DOM で組む） ----- */
+function currentRange(){
+  var sel = window.getSelection();
+  if(!sel || sel.rangeCount === 0) return null;
+  var r = sel.getRangeAt(0);
+  if(!editor.contains(r.commonAncestorContainer) || r.collapsed) return null;
+  return r;
+}
+function replaceRangeWith(range, node){
+  range.deleteContents();
+  range.insertNode(node);
+  var after = document.createRange();
+  after.setStartAfter(node);
+  after.collapse(true);
+  var sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(after);
+  editor.normalize();
+  scheduleSave(); scheduleCount();
+}
+
+/* ----- ルビ ----- */
+var rubyRange = null;
+function openRuby(){
+  var t = selectedText();
+  if(!inEditor() || !t){ setState('ルビを振る文字を選んでください'); return; }
+  rubyRange = window.getSelection().getRangeAt(0).cloneRange();
+  $('#rubyBase').textContent = t;
+  $('#rubyRead').value = '';
+  $('#rubyVeil').classList.add('open');
+  setTimeout(function(){ $('#rubyRead').focus(); }, 30);
+}
+function closeRuby(){
+  $('#rubyVeil').classList.remove('open');
+  rubyRange = null;
+}
+function commitRuby(){
+  var read = $('#rubyRead').value.trim();
+  var base = $('#rubyBase').textContent;
+  var range = rubyRange;
+  if(!range || !read){ closeRuby(); return; }
+  var ruby = document.createElement('ruby');
+  ruby.appendChild(document.createTextNode(base));
+  ruby.appendChild(el('rp', '（'));
+  ruby.appendChild(el('rt', read));
+  ruby.appendChild(el('rp', '）'));
+  editor.focus();
+  replaceRangeWith(range, ruby);
+  closeRuby();
+}
+function el(tag, text){
+  var n = document.createElement(tag);
+  n.textContent = text;
+  return n;
+}
+$('#btnRuby').addEventListener('click', openRuby);
+$('#rubyOk').addEventListener('click', commitRuby);
+$('#rubyCancel').addEventListener('click', closeRuby);
+$('#rubyRead').addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); commitRuby(); }
+  if(e.key === 'Escape'){ e.preventDefault(); closeRuby(); }
+});
+$('#rubyVeil').addEventListener('mousedown', function(e){
+  if(e.target === $('#rubyVeil')) closeRuby();
+});
+
+$('#btnBouten').addEventListener('click', function(){ wrapSelection('<em class="bouten">','</em>'); });
+$('#btnTcy').addEventListener('click', function(){ wrapSelection('<span class="tcy">','</span>'); });
+$('#btnBold').addEventListener('click', function(){ editor.focus(); document.execCommand('bold'); scheduleSave(); });
+$('#btnLine').addEventListener('click', function(){ editor.focus(); document.execCommand('underline'); scheduleSave(); });
+$('#btnClear').addEventListener('click', function(){
+  var t = selectedText();
+  if(!inEditor() || !t){ setState('書式を消す範囲を選んでください'); return; }
+  var range = window.getSelection().getRangeAt(0);
+  var marked = [];
+  var all = editor.querySelectorAll('ruby, em.bouten, span.tcy');
+  for(var i = 0; i < all.length; i++){
+    var el = all[i];
+    if(range.intersectsNode ? range.intersectsNode(el) : range.commonAncestorContainer.contains(el)) marked.push(el);
+  }
+  editor.focus();
+  document.execCommand('removeFormat');
+  for(var j = 0; j < marked.length; j++) unwrap(marked[j]);
+  editor.normalize();
+  scheduleSave(); scheduleCount();
+});
+function unwrap(el){
+  var text;
+  if(el.tagName === 'RUBY'){
+    text = '';
+    for(var i = 0; i < el.childNodes.length; i++){
+      var k = el.childNodes[i];
+      if(k.nodeType === 1 && (k.tagName === 'RT' || k.tagName === 'RP')) continue;
+      text += k.textContent;
+    }
+  }else{
+    text = el.textContent;
+  }
+  if(el.parentNode) el.parentNode.replaceChild(document.createTextNode(text), el);
+}
+
+/* ===== 体裁の操作 ===== */
+function refresh(){ applyLayout(); scheduleSave(); scheduleCount(); }
+$('#btnDir').addEventListener('click', function(){ state.tate = !state.tate; refresh(); });
+$('#btnGrid').addEventListener('click', function(){ state.grid = !state.grid; refresh(); });
+$('#btnIndent').addEventListener('click', function(){ state.indent = !state.indent; refresh(); });
+$('#numChars').addEventListener('change', function(){ state.chars = clampNum(this.value, 4, 80, 20); refresh(); });
+$('#numLines').addEventListener('change', function(){ state.lines = clampNum(this.value, 4, 80, 20); refresh(); });
+$('#selPreset').addEventListener('change', function(){
+  if(!this.value) return;
+  var p = this.value.split(',');
+  state.chars = +p[0]; state.lines = +p[1];
+  refresh();
+});
+$('#selSize').addEventListener('change', function(){ state.cell = +this.value; refresh(); });
+$('#selLh').addEventListener('change', function(){ state.lh = +this.value; refresh(); });
+
+/* ===== 集中モード ===== */
+$('#btnFocus').addEventListener('click', function(){
+  var on = document.body.classList.toggle('focusmode');
+  this.setAttribute('aria-pressed', String(on));
+  editor.focus();
+});
+
+/* ===== 検索・置換 ===== */
+function textMap(){
+  var walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, {
+    acceptNode: function(n){
+      var p = n.parentNode;
+      while(p && p !== editor){
+        if(p.tagName === 'RT' || p.tagName === 'RP') return NodeFilter.FILTER_REJECT;
+        p = p.parentNode;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+  var nodes = [], starts = [], full = '', n;
+  while((n = walker.nextNode())){
+    nodes.push(n); starts.push(full.length); full += n.data;
+  }
+  return { nodes:nodes, starts:starts, full:full };
+}
+function locate(map, offset){
+  for(var i = map.nodes.length - 1; i >= 0; i--){
+    if(map.starts[i] <= offset) return { node:map.nodes[i], offset:offset - map.starts[i] };
+  }
+  return null;
+}
+function rangeAt(map, pos, len){
+  var s = locate(map, pos), e = locate(map, pos + len);
+  if(!s || !e) return null;
+  var r = document.createRange();
+  try{
+    r.setStart(s.node, Math.min(s.offset, s.node.data.length));
+    r.setEnd(e.node, Math.min(e.offset, e.node.data.length));
+  }catch(err){ return null; }
+  return r;
+}
+function caretOffset(map){
+  var sel = window.getSelection();
+  if(!sel || sel.rangeCount === 0 || !inEditor()) return 0;
+  var r = sel.getRangeAt(0);
+  for(var i = 0; i < map.nodes.length; i++){
+    if(map.nodes[i] === r.endContainer) return map.starts[i] + r.endOffset;
+  }
+  return 0;
+}
+function note(msg){ $('#findNote').textContent = msg; }
+function findFrom(q, from){
+  var map = textMap();
+  if(!q) return null;
+  var pos = map.full.indexOf(q, from);
+  var wrapped = false;
+  if(pos < 0){ pos = map.full.indexOf(q, 0); wrapped = true; }
+  if(pos < 0) return null;
+  return { map:map, pos:pos, wrapped:wrapped, total:map.full.split(q).length - 1 };
+}
+function findNext(){
+  var q = $('#findText').value;
+  if(!q){ note('検索する文字を入れてください'); return false; }
+  var map0 = textMap();
+  var hit = findFrom(q, caretOffset(map0));
+  if(!hit){ note('見つかりませんでした'); return false; }
+  var r = rangeAt(hit.map, hit.pos, q.length);
+  if(!r){ note('見つかりませんでした'); return false; }
+  var sel = window.getSelection();
+  editor.focus();
+  sel.removeAllRanges();
+  sel.addRange(r);
+  var el = r.startContainer.parentNode;
+  if(el && el.scrollIntoView) el.scrollIntoView({ block:'nearest', inline:'nearest' });
+  note(hit.total + '件' + (hit.wrapped ? '（先頭に戻りました）' : ''));
+  return true;
+}
+function replaceOne(){
+  var q = $('#findText').value, rep = $('#replText').value;
+  if(!q){ note('検索する文字を入れてください'); return; }
+  if(selectedText() !== q || !inEditor()){
+    if(!findNext()) return;
+  }
+  editor.focus();
+  document.execCommand('insertText', false, rep);
+  scheduleSave(); scheduleCount();
+  findNext();
+}
+function replaceAll(){
+  var q = $('#findText').value, rep = $('#replText').value;
+  if(!q){ note('検索する文字を入れてください'); return; }
+  var from = 0, count = 0, guard = 0;
+  while(guard++ < 5000){
+    var map = textMap();
+    var pos = map.full.indexOf(q, from);
+    if(pos < 0) break;
+    var r = rangeAt(map, pos, q.length);
+    if(!r) break;
+    var sel = window.getSelection();
+    editor.focus();
+    sel.removeAllRanges();
+    sel.addRange(r);
+    document.execCommand('insertText', false, rep);
+    from = pos + rep.length;
+    count++;
+  }
+  note(count + '件を置き換えました');
+  scheduleSave(); scheduleCount();
+}
+function toggleFind(open){
+  var bar = $('#findBar');
+  var on = (open === undefined) ? !bar.classList.contains('open') : open;
+  bar.classList.toggle('open', on);
+  if(on){ $('#findText').focus(); $('#findText').select(); }
+  else { note(''); editor.focus(); }
+}
+$('#btnFind').addEventListener('click', function(){ toggleFind(); });
+$('#btnFindClose').addEventListener('click', function(){ toggleFind(false); });
+$('#btnNext').addEventListener('click', findNext);
+$('#btnRepl').addEventListener('click', replaceOne);
+$('#btnReplAll').addEventListener('click', replaceAll);
+$('#findText').addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); findNext(); }
+  if(e.key === 'Escape'){ e.preventDefault(); toggleFind(false); }
+});
+$('#replText').addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && !e.isComposing){ e.preventDefault(); replaceOne(); }
+  if(e.key === 'Escape'){ e.preventDefault(); toggleFind(false); }
+});
+
+/* ===== 書き出し ===== */
+function docName(){
+  var t = (titleEl.value || '無題の原稿').trim();
+  return t.replace(/[\\\/:*?"<>|]/g, '_').slice(0, 60) || '無題の原稿';
+}
+function download(blob, name){
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+}
+$('#btnTxt').addEventListener('click', function(){
+  var head = (titleEl.value || '').trim();
+  var body = plainText(true);
+  var text = (head ? head + '\n\n' : '') + body + '\n';
+  text = text.replace(/\r?\n/g, '\r\n');
+  download(new Blob(['﻿' + text], { type:'text/plain;charset=utf-8' }), docName() + '.txt');
+  setState('.txt を書き出しました');
+});
+$('#btnHtml').addEventListener('click', function(){
+  var css = [
+    'body{margin:0;background:#faf7ef;color:#16161a;',
+    'font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif;}',
+    '.sheet{padding:40px 44px;}',
+    '#doc{writing-mode:' + (state.tate ? 'vertical-rl' : 'horizontal-tb') + ';',
+    '-webkit-writing-mode:' + (state.tate ? 'vertical-rl' : 'horizontal-tb') + ';',
+    'text-orientation:mixed;font-size:' + Math.round(state.cell * 0.86) + 'px;',
+    'letter-spacing:' + (state.cell - Math.round(state.cell * 0.86)) + 'px;',
+    'line-height:' + (state.cell * (state.grid ? 1 : state.lh)) + 'px;',
+    state.tate ? 'height:' + (state.cell * state.chars) + 'px;' : 'width:' + (state.cell * state.chars) + 'px;',
+    '}',
+    '#doc p{margin:0;' + (state.indent ? 'text-indent:' + state.cell + 'px;' : '') + '}',
+    'ruby{ruby-position:over;-webkit-ruby-position:before}',
+    'rt{font-size:.5em;line-height:1}',
+    'em.bouten{font-style:normal;text-emphasis:filled sesame currentColor;',
+    '-webkit-text-emphasis:filled sesame currentColor;}',
+    'span.tcy{text-combine-upright:all;-webkit-text-combine:horizontal;letter-spacing:0}',
+    'h1{font-size:1em;font-weight:400;letter-spacing:.3em;margin:0 0 1.5em}',
+    '@page{size:A4 portrait;margin:18mm 16mm}'
+  ].join('');
+  var head = (titleEl.value || '無題の原稿').trim();
+  var html = '<!DOCTYPE html>\n<html lang="ja">\n<head>\n<meta charset="utf-8">\n' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
+    '<title>' + esc(head) + '</title>\n<style>' + css + '</style>\n</head>\n<body>\n' +
+    '<div class="sheet"><div id="doc"><h1>' + esc(head) + '</h1>\n' +
+    editor.innerHTML + '\n</div></div>\n</body>\n</html>\n';
+  download(new Blob([html], { type:'text/html;charset=utf-8' }), docName() + '.html');
+  setState('.html を書き出しました');
+});
+$('#btnPrint').addEventListener('click', function(){ window.print(); });
+
+/* ===== 開く ===== */
+$('#btnOpen').addEventListener('click', function(){ $('#fileInput').click(); });
+$('#fileInput').addEventListener('change', function(){
+  var f = this.files && this.files[0];
+  if(!f) return;
+  var reader = new FileReader();
+  reader.onload = function(){
+    var text = String(reader.result || '').replace(/^\uFEFF/, '');
+    if(/\.html?$/i.test(f.name)) importHtml(text);
+    else importText(text);
+    titleEl.value = f.name.replace(/\.(txt|html?)$/i, '');
+    applyLayout(); scheduleSave(); updateCount();
+    setState('「' + f.name + '」を開きました');
+  };
+  reader.readAsText(f, 'utf-8');
+  this.value = '';
+});
+function importText(text){
+  var lines = text.replace(/\r\n?/g, '\n').split('\n');
+  var html = lines.map(function(line){
+    var s = esc(line);
+    /* ｜漢字《かんじ》 と 漢字《かんじ》 */
+    s = s.replace(/｜([^《｜\n]+)《([^》\n]+)》/g, function(m, b, r){
+      return '<ruby>' + b + '<rp>（</rp><rt>' + r + '</rt><rp>）</rp></ruby>';
+    });
+    s = s.replace(/([一-鿿々〆ヵヶ]+)《([^》\n]+)》/g, function(m, b, r){
+      return '<ruby>' + b + '<rp>（</rp><rt>' + r + '</rt><rp>）</rp></ruby>';
+    });
+    /* ［＃「◯◯」に傍点］は記法を外してから、直前の同一文字列へ傍点を付ける */
+    s = s.replace(/［＃「[^」\n]+」に傍点］/g, '');
+    s = applyBouten(s, line);
+    return '<p>' + (s === '' ? '<br>' : s) + '</p>';
+  }).join('');
+  editor.innerHTML = html || '<p><br></p>';
+}
+function applyBouten(html, raw){
+  /* 行末の傍点指定を、直前に現れた同一文字列へ適用する */
+  var re = /［＃「([^」\n]+)」に傍点］/g, m, targets = [];
+  while((m = re.exec(raw))) targets.push(m[1]);
+  if(!targets.length) return html;
+  targets.forEach(function(t){
+    var e = esc(t);
+    var at = html.lastIndexOf(e);
+    if(at >= 0){
+      html = html.slice(0, at) + '<em class="bouten">' + e + '</em>' + html.slice(at + e.length);
+    }
+  });
+  return html;
+}
+function importHtml(text){
+  var doc = new DOMParser().parseFromString(text, 'text/html');
+  var src = doc.querySelector('#editor') || doc.querySelector('#doc') || doc.body;
+  if(!src){ importText(text); return; }
+  var tmp = src.cloneNode(true);
+  var junk = tmp.querySelectorAll('script,style,link,iframe,object,embed,h1');
+  for(var i = 0; i < junk.length; i++) junk[i].parentNode.removeChild(junk[i]);
+  var els = tmp.querySelectorAll('*');
+  for(var j = 0; j < els.length; j++){
+    var el = els[j], attrs = el.attributes;
+    for(var k = attrs.length - 1; k >= 0; k--){
+      var name = attrs[k].name;
+      var keep = (name === 'class' && (el.tagName === 'EM' || el.tagName === 'SPAN'));
+      if(!keep) el.removeAttribute(name);
+    }
+  }
+  editor.innerHTML = tmp.innerHTML.trim() || '<p><br></p>';
+}
+
+/* ===== 入力 ===== */
+editor.addEventListener('input', function(){
+  if(composing) return;
+  scheduleSave(); scheduleCount();
+});
+editor.addEventListener('compositionstart', function(){ composing = true; });
+editor.addEventListener('compositionend', function(){ composing = false; scheduleSave(); scheduleCount(); });
+editor.addEventListener('paste', function(e){
+  var cb = e.clipboardData || window.clipboardData;
+  if(!cb) return;
+  e.preventDefault();
+  var t = cb.getData('text/plain').replace(/\r\n?/g, '\n');
+  document.execCommand('insertText', false, t);
+});
+titleEl.addEventListener('input', scheduleSave);
+
+/* ===== ショートカット ===== */
+document.addEventListener('keydown', function(e){
+  var mod = e.ctrlKey || e.metaKey;
+  if(mod && e.key.toLowerCase() === 's'){ e.preventDefault(); clearTimeout(saveTimer); saveNow(); return; }
+  if(mod && e.key.toLowerCase() === 'f'){ e.preventDefault(); toggleFind(true); return; }
+  if(mod && e.key.toLowerCase() === 'p'){ return; }
+  if(mod && e.shiftKey && e.key.toLowerCase() === 'r'){ e.preventDefault(); openRuby(); return; }
+  if(mod && e.shiftKey && e.key.toLowerCase() === 'e'){ e.preventDefault(); wrapSelection('<em class="bouten">','</em>'); return; }
+  if(e.key === 'Escape'){
+    if($('#rubyVeil').classList.contains('open')){ closeRuby(); return; }
+    if($('#findBar').classList.contains('open')){ toggleFind(false); return; }
+    if(document.body.classList.contains('focusmode')){ $('#btnFocus').click(); }
+  }
+});
+window.addEventListener('beforeunload', function(){
+  if(saveTimer){ clearTimeout(saveTimer); saveNow(); }
+});
+window.addEventListener('resize', scheduleCount);
+
+/* ===== 起動 ===== */
+loadSaved();
+editor.focus();
+
+})();
+</script>
+</body>
+</html>
