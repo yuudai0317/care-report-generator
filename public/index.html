@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="敬語禁止交流会の点数表。同じルーム名を開いた全員でカウントを共有できます。">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex">
+<title>点数表｜敬語禁止交流会</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23F5C518'/><text x='16' y='23' font-size='20' text-anchor='middle' font-family='sans-serif' fill='%230E1633'>敬</text></svg>">
+<style>
+  :root{
+    --navy:#0E1633;
+    --navy-2:#182453;
+    --navy-3:#212F66;
+    --paper:#EDEFF6;
+    --card:#F5C518;
+    --card-deep:#D9A800;
+    --muted:#8B95B4;
+    --green:#2FBF71;
+    --red:#E4574C;
+    --line:rgba(255,255,255,.14);
+    --font-jp:"Hiragino Kaku Gothic ProN","Yu Gothic UI","Yu Gothic","Noto Sans JP","Meiryo",sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--navy);
+    background-image:radial-gradient(120% 70% at 85% -10%, #1C2A63 0%, rgba(28,42,99,0) 60%);
+    color:var(--paper);font-family:var(--font-jp);line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:18px 14px 60px;}
+
+  /* header */
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+  .yellowcard{
+    flex:0 0 auto;width:34px;height:48px;border-radius:4px;
+    background:linear-gradient(160deg,var(--card),var(--card-deep));
+    color:var(--navy);display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:13px;letter-spacing:.2em;writing-mode:vertical-rl;
+    box-shadow:0 6px 16px rgba(0,0,0,.4);transform:rotate(-7deg);
+  }
+  h1{font-size:22px;font-weight:800;margin:0;letter-spacing:.02em;}
+  .sub{font-size:11px;color:var(--muted);letter-spacing:.14em;}
+
+  /* sync bar */
+  .syncbar{
+    display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:10px;
+    padding:9px 12px;font-size:12px;margin-bottom:14px;
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:0 0 auto;}
+  .dot.on{background:var(--green);box-shadow:0 0 0 4px rgba(47,191,113,.18);}
+  .dot.err{background:var(--red);box-shadow:0 0 0 4px rgba(228,87,76,.18);}
+  #syncText{color:#C7CEE4;}
+  .room{margin-left:auto;display:flex;align-items:center;gap:6px;}
+  .room label{color:var(--muted);}
+  .room input{
+    width:96px;background:var(--navy-3);border:1px solid var(--line);color:#fff;
+    border-radius:7px;padding:6px 8px;font-family:inherit;font-size:12px;
+    letter-spacing:.1em;text-transform:uppercase;min-height:32px;
+  }
+  #copyLink{
+    appearance:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;
+    background:var(--navy-3);color:#C7CEE4;border:1px solid var(--line);
+    border-radius:7px;padding:6px 10px;min-height:32px;flex:0 0 auto;
+  }
+
+  /* scoreboard */
+  .board{
+    background:linear-gradient(180deg,var(--navy-2),rgba(24,36,83,.55));
+    border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px;
+    display:flex;align-items:center;gap:16px;
+  }
+  .total{flex:0 0 auto;text-align:center;}
+  .total b{display:block;font-size:38px;line-height:1;font-weight:800;color:var(--card);}
+  .total span{font-size:10px;color:var(--muted);letter-spacing:.16em;}
+  .king{border-left:1px solid var(--line);padding-left:16px;min-width:0;}
+  .king .lab{font-size:10px;color:var(--card);letter-spacing:.18em;font-weight:700;}
+  .king .val{font-size:17px;font-weight:700;overflow-wrap:anywhere;}
+
+  /* rows */
+  #rows{display:flex;flex-direction:column;gap:8px;}
+  .row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:12px;
+    padding:8px 10px 8px 12px;
+    transition:background .35s ease, box-shadow .35s ease;
+  }
+  .row.hit{background:#3A3A12;box-shadow:0 0 0 2px var(--card) inset;}
+  .name{
+    flex:1 1 auto;min-width:0;background:transparent;border:0;color:#fff;
+    font-family:inherit;font-size:16px;font-weight:700;padding:8px 0;
+  }
+  .name::placeholder{color:#5F6A8C;font-weight:500;}
+  .name:focus{outline:0;border-bottom:2px solid var(--card);}
+  .cnt{
+    flex:0 0 auto;min-width:52px;text-align:center;
+    font-size:30px;font-weight:800;line-height:1;color:var(--card);
+    font-variant-numeric:tabular-nums;transition:transform .12s ease;
+  }
+  .cnt.pop{transform:scale(1.28);}
+  .btn{
+    appearance:none;border:0;cursor:pointer;font-family:inherit;
+    border-radius:10px;min-width:48px;min-height:48px;font-size:22px;font-weight:800;
+    display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+  }
+  .plus{background:var(--card);color:#151C3B;box-shadow:0 3px 0 var(--card-deep);}
+  .plus:active{transform:translateY(3px);box-shadow:none;}
+  .minus{background:var(--navy-3);color:#C7CEE4;border:1px solid var(--line);}
+  .del{
+    background:transparent;border:0;color:#6B7699;cursor:pointer;font-family:inherit;
+    font-size:18px;min-width:34px;min-height:44px;flex:0 0 auto;
+  }
+  .del:hover{color:var(--red);}
+  .btn:focus-visible,.del:focus-visible,#copyLink:focus-visible{outline:3px solid #fff;outline-offset:2px;}
+
+  /* controls */
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
+  .ctl{
+    appearance:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:700;
+    background:var(--navy-2);color:#D6DBEC;border:1px solid var(--line);
+    border-radius:999px;padding:11px 18px;min-height:44px;
+  }
+  .ctl:disabled{opacity:.4;cursor:default;}
+  .ctl.warn{color:#F3B6B1;border-color:rgba(228,87,76,.5);}
+  .note{margin-top:22px;font-size:11px;color:#6E799B;line-height:1.8;border-top:1px solid var(--line);padding-top:14px;}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="yellowcard">敬語</div>
+    <div>
+      <h1>点数表</h1>
+      <div class="sub">敬語禁止交流会</div>
+    </div>
+  </div>
+
+  <div class="syncbar">
+    <span class="dot" id="dot"></span>
+    <span id="syncText">接続中…</span>
+    <button id="copyLink" type="button">リンクをコピー</button>
+    <span class="room">
+      <label for="room">ルーム</label>
+      <input id="room" value="MERIT" maxlength="10" autocomplete="off" spellcheck="false">
+    </span>
+  </div>
+
+  <div class="board">
+    <div class="total"><b id="total">0</b><span>TOTAL</span></div>
+    <div class="king">
+      <div class="lab">本日の敬語王</div>
+      <div class="val" id="king">まだ全員セーフ</div>
+    </div>
+  </div>
+
+  <div id="rows"></div>
+
+  <div class="controls">
+    <button class="ctl" id="add" type="button">＋ 参加者を追加</button>
+    <button class="ctl" id="undo" type="button" disabled>ひとつ戻す</button>
+    <button class="ctl warn" id="reset" type="button">全員リセット</button>
+  </div>
+
+  <div class="note" id="note">
+    同じルーム名を開いた全員の画面で、ニックネームとカウントが共有されます。誰かが押した数字は数秒で他の端末にも反映されます。共有ルームの内容はこのアプリを開いた人全員が見られるので、名前は当日のニックネームだけにしてください。イベントごとにルーム名を変えると混ざりません。
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var MAX = 8;
+  var POLL_MS = 2500;
+  var API = '/api/room';
+  var DEFAULT_ROOM = 'MERIT';
+
+  var room = DEFAULT_ROOM;
+  var state = { rev:0, players:[] };
+  var history = [];
+  var queue = [];
+  var running = false;
+  var nameTimer = null;
+  var offline = false;
+  var booting = false;
+
+  var els = {
+    rows: document.getElementById('rows'),
+    total: document.getElementById('total'),
+    king: document.getElementById('king'),
+    add: document.getElementById('add'),
+    undo: document.getElementById('undo'),
+    reset: document.getElementById('reset'),
+    dot: document.getElementById('dot'),
+    syncText: document.getElementById('syncText'),
+    room: document.getElementById('room'),
+    copyLink: document.getElementById('copyLink')
+  };
+
+  function uid(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function clone(o){ return JSON.parse(JSON.stringify(o)); }
+  function blank(){
+    return { rev:0, players:[
+      {id:uid(), name:'', count:0},
+      {id:uid(), name:'', count:0},
+      {id:uid(), name:'', count:0}
+    ]};
+  }
+  function label(p, i){ return (p.name && p.name.trim()) ? p.name.trim() : '参加者' + (i+1); }
+  function normalizeRoom(v){
+    v = (v || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '').slice(0, 10);
+    return v || DEFAULT_ROOM;
+  }
+
+  function setSync(mode, text){
+    els.dot.className = 'dot' + (mode ? ' ' + mode : '');
+    els.syncText.textContent = text;
+  }
+
+  /* ---------- storage ---------- */
+  var cacheKey = function(){ return 'keigo:room:' + room; };
+
+  function readCache(){
+    try {
+      var raw = localStorage.getItem(cacheKey());
+      return raw ? JSON.parse(raw) : null;
+    } catch(e){ return null; }
+  }
+  function writeCache(s){
+    try { localStorage.setItem(cacheKey(), JSON.stringify(s)); } catch(e){}
+  }
+
+  function readRemote(){
+    return fetch(API + '?room=' + encodeURIComponent(room), { headers:{ 'accept':'application/json' } })
+      .then(function(res){
+        if(!res.ok) throw new Error('http ' + res.status);
+        return res.json();
+      })
+      .then(function(body){
+        offline = false;
+        return body && body.state ? body.state : null;
+      });
+  }
+
+  // 成功: {ok:true}／競合: {conflict:true, state:最新}／失敗は reject
+  function writeRemote(next){
+    return fetch(API + '?room=' + encodeURIComponent(room), {
+      method:'PUT',
+      headers:{ 'content-type':'application/json' },
+      body: JSON.stringify(next)
+    }).then(function(res){
+      if(res.status === 409){
+        return res.json().then(function(body){
+          return { conflict:true, state: body && body.state ? body.state : null };
+        });
+      }
+      if(!res.ok) throw new Error('http ' + res.status);
+      offline = false;
+      return { ok:true };
+    });
+  }
+
+  function commit(mutate){
+    queue.push(mutate);
+    pump();
+  }
+
+  function pump(){
+    if(running) return;
+    var mutate = queue.shift();
+    if(!mutate) return;
+    running = true;
+    attempt(mutate, 0).then(function(){
+      running = false;
+      pump();
+    });
+  }
+
+  // 最新版を読んでから mutate を当て直すので、競合しても他端末の更新を消さない
+  function attempt(mutate, tries){
+    return readRemote().catch(function(){ return null; }).then(function(remote){
+      var base = (remote && typeof remote.rev === 'number' && remote.rev >= (state.rev || 0)) ? remote : clone(state);
+      var next = mutate(base);
+      next.rev = Math.max(base.rev || 0, state.rev || 0) + 1;
+      state = next;
+      render();
+      writeCache(next);
+      return writeRemote(next).then(function(res){
+        if(res.conflict){
+          if(res.state){ state = res.state; render(); writeCache(res.state); }
+          if(tries < 3) return attempt(mutate, tries + 1);
+          setSync('err', '同期できませんでした');
+          return;
+        }
+        setSync('on', 'クラウド同期中（ルーム ' + room + '）');
+      }, function(){
+        offline = true;
+        setSync('err', 'オフライン中（この端末に保存）');
+      });
+    });
+  }
+
+  function poll(){
+    if(running || queue.length || booting) return;
+    readRemote().then(function(remote){
+      if(remote && (remote.rev || 0) > (state.rev || 0)){
+        state = remote;
+        render();
+        writeCache(remote);
+      }
+      setSync('on', 'クラウド同期中（ルーム ' + room + '）');
+    }, function(){
+      offline = true;
+      setSync('err', 'オフライン中（この端末に保存）');
+    });
+  }
+
+  /* ---------- actions ---------- */
+  function bump(id, delta, rowEl){
+    var p = findLocal(id);
+    if(!p) return;
+    if(p.count + delta < 0) return;
+    p.count += delta;
+    paintRow(id);
+    paintBoard();
+    history.push({id:id, delta:delta});
+    els.undo.disabled = false;
+    if(delta > 0 && rowEl) flash(rowEl, id);
+    commit(function(base){
+      var t = base.players.filter(function(x){ return x.id === id; })[0];
+      if(t) t.count = Math.max(0, t.count + delta);
+      return base;
+    });
+  }
+
+  function flash(rowEl, id){
+    rowEl.classList.add('hit');
+    var c = rowEl.querySelector('.cnt');
+    if(c){ c.classList.add('pop'); setTimeout(function(){ c.classList.remove('pop'); }, 130); }
+    setTimeout(function(){ rowEl.classList.remove('hit'); }, 320);
+  }
+
+  function findLocal(id){
+    return state.players.filter(function(x){ return x.id === id; })[0];
+  }
+
+  function rename(id, value){
+    var p = findLocal(id);
+    if(p) p.name = value;
+    paintBoard();
+    clearTimeout(nameTimer);
+    nameTimer = setTimeout(function(){
+      commit(function(base){
+        var t = base.players.filter(function(x){ return x.id === id; })[0];
+        if(t) t.name = value;
+        return base;
+      });
+    }, 700);
+  }
+
+  /* ---------- render ---------- */
+  function render(){
+    var have = {};
+    Array.prototype.forEach.call(els.rows.children, function(el){ have[el.dataset.id] = el; });
+
+    state.players.forEach(function(p, i){
+      var el = have[p.id];
+      if(!el){ el = buildRow(p); els.rows.appendChild(el); }
+      delete have[p.id];
+      var input = el.querySelector('.name');
+      if(document.activeElement !== input && input.value !== p.name) input.value = p.name;
+      input.placeholder = '参加者' + (i+1);
+      paintRow(p.id, el);
+    });
+    Object.keys(have).forEach(function(k){ els.rows.removeChild(have[k]); });
+
+    // keep DOM order in sync with state
+    state.players.forEach(function(p){
+      var el = els.rows.querySelector('[data-id="' + p.id + '"]');
+      if(el) els.rows.appendChild(el);
+    });
+
+    els.add.disabled = state.players.length >= MAX;
+    paintBoard();
+  }
+
+  function buildRow(p){
+    var row = document.createElement('div');
+    row.className = 'row';
+    row.dataset.id = p.id;
+
+    var input = document.createElement('input');
+    input.className = 'name';
+    input.type = 'text';
+    input.value = p.name;
+    input.maxLength = 14;
+    input.autocomplete = 'off';
+    input.setAttribute('aria-label', 'ニックネーム');
+    input.addEventListener('input', function(){ rename(p.id, input.value); });
+
+    var cnt = document.createElement('div');
+    cnt.className = 'cnt';
+
+    var minus = document.createElement('button');
+    minus.className = 'btn minus'; minus.type = 'button'; minus.textContent = '−';
+    minus.setAttribute('aria-label', '1回減らす');
+    minus.addEventListener('click', function(){ bump(p.id, -1, row); });
+
+    var plus = document.createElement('button');
+    plus.className = 'btn plus'; plus.type = 'button'; plus.textContent = '＋';
+    plus.setAttribute('aria-label', '1回追加');
+    plus.addEventListener('click', function(){ bump(p.id, 1, row); });
+
+    var del = document.createElement('button');
+    del.className = 'del'; del.type = 'button'; del.textContent = '×';
+    del.setAttribute('aria-label', 'この参加者を削除');
+    del.addEventListener('click', function(){
+      if(state.players.length <= 1) return;
+      commit(function(base){
+        if(base.players.length <= 1) return base;
+        base.players = base.players.filter(function(x){ return x.id !== p.id; });
+        return base;
+      });
+    });
+
+    row.appendChild(input);
+    row.appendChild(cnt);
+    row.appendChild(minus);
+    row.appendChild(plus);
+    row.appendChild(del);
+    return row;
+  }
+
+  function paintRow(id, el){
+    el = el || els.rows.querySelector('[data-id="' + id + '"]');
+    if(!el) return;
+    var p = findLocal(id);
+    if(!p) return;
+    el.querySelector('.cnt').textContent = p.count;
+  }
+
+  function paintBoard(){
+    var total = state.players.reduce(function(s,p){ return s + p.count; }, 0);
+    els.total.textContent = total;
+    var max = 0;
+    state.players.forEach(function(p){ if(p.count > max) max = p.count; });
+    if(max === 0){
+      els.king.textContent = 'まだ全員セーフ';
+    } else {
+      var names = state.players.map(function(p,i){ return {n:label(p,i), c:p.count}; })
+        .filter(function(x){ return x.c === max; }).map(function(x){ return x.n; });
+      els.king.textContent = names.join('・') + '（' + max + '回）';
+    }
+    state.players.forEach(function(p){ paintRow(p.id); });
+  }
+
+  /* ---------- controls ---------- */
+  els.add.addEventListener('click', function(){
+    commit(function(base){
+      if(base.players.length >= MAX) return base;
+      base.players.push({id:uid(), name:'', count:0});
+      return base;
+    });
+  });
+
+  els.undo.addEventListener('click', function(){
+    var last = history.pop();
+    els.undo.disabled = history.length === 0;
+    if(!last) return;
+    bumpSilent(last.id, -last.delta);
+  });
+
+  function bumpSilent(id, delta){
+    var p = findLocal(id);
+    if(p) p.count = Math.max(0, p.count + delta);
+    paintBoard();
+    commit(function(base){
+      var t = base.players.filter(function(x){ return x.id === id; })[0];
+      if(t) t.count = Math.max(0, t.count + delta);
+      return base;
+    });
+  }
+
+  els.reset.addEventListener('click', function(){
+    if(!window.confirm('全員のカウントを0に戻します。よろしいですか？')) return;
+    history = [];
+    els.undo.disabled = true;
+    commit(function(base){
+      base.players.forEach(function(p){ p.count = 0; });
+      return base;
+    });
+  });
+
+  els.room.addEventListener('change', function(){
+    var v = normalizeRoom(els.room.value);
+    els.room.value = v;
+    if(v === room) return;
+    room = v;
+    setRoomInUrl(v);
+    history = []; els.undo.disabled = true;
+    queue = [];
+    state = { rev:0, players:[] };
+    els.rows.innerHTML = '';
+    boot();
+  });
+
+  els.copyLink.addEventListener('click', function(){
+    var url = location.origin + location.pathname + '?room=' + encodeURIComponent(room);
+    var done = function(){
+      els.copyLink.textContent = 'コピーしました';
+      setTimeout(function(){ els.copyLink.textContent = 'リンクをコピー'; }, 1600);
+    };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(done, function(){ window.prompt('このURLを共有してください', url); });
+    } else {
+      window.prompt('このURLを共有してください', url);
+    }
+  });
+
+  function setRoomInUrl(v){
+    // ローカル変数 history（操作履歴）と衝突しないよう window.history を明示する
+    try {
+      window.history.replaceState(null, '', location.pathname + '?room=' + encodeURIComponent(v));
+    } catch(e){}
+  }
+
+  /* ---------- boot ---------- */
+  function boot(){
+    booting = true;
+    setSync('', 'ルーム「' + room + '」を読み込み中…');
+    readRemote().then(function(remote){
+      booting = false;
+      if(remote && remote.players && remote.players.length){
+        state = remote;
+        render();
+        writeCache(remote);
+        setSync('on', 'クラウド同期中（ルーム ' + room + '）');
+      } else {
+        var seed = blank();
+        state = { rev:0, players:[] };
+        commit(function(){ return seed; });
+      }
+    }, function(){
+      booting = false;
+      offline = true;
+      var cached = readCache();
+      state = (cached && cached.players && cached.players.length) ? cached : blank();
+      render();
+      setSync('err', 'オフライン中（この端末に保存）');
+    });
+  }
+
+  var params = new URLSearchParams(location.search);
+  room = normalizeRoom(params.get('room') || DEFAULT_ROOM);
+  els.room.value = room;
+
+  boot();
+  setInterval(poll, POLL_MS);
+  document.addEventListener('visibilitychange', function(){ if(!document.hidden) poll(); });
+})();
+</script>
+</body>
+</html>
