@@ -16,6 +16,8 @@
 
 保存先は **Netlify Blobs**（ストア名 `keigo-rooms`、キーはルーム名）。データベースの用意や環境変数の設定は不要です。
 
+`public/index.html` は単体で完結しているので、Claude の Artifact に貼っても動きます。その場合は保存先が自動で `window.storage` に切り替わります（Netlify 上では `/api/room`）。
+
 ## API
 
 | メソッド | パス | 内容 |

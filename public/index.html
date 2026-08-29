@@ -219,7 +219,7 @@
   function clone(o){ return JSON.parse(JSON.stringify(o)); }
   function blank(){
     return { rev:0, players:[
-      {id:uid(), name:'', count:0},
+      {id:uid(), name:'ゆうだい', count:0},
       {id:uid(), name:'', count:0},
       {id:uid(), name:'', count:0}
     ]};
@@ -277,7 +277,17 @@
     try { localStorage.setItem(cacheKey(), JSON.stringify(s)); } catch(e){}
   }
 
+  // Claude の Artifact 上では window.storage、Netlify 上では /api/room を使う
+  var artifactStore = (window.storage && typeof window.storage.get === 'function') ? window.storage : null;
+
   function readRemote(){
+    if(artifactStore){
+      return artifactStore.get(cacheKey(), true).then(function(r){
+        offline = false;
+        if(!r || !r.value) return null;
+        try { return JSON.parse(r.value); } catch(e){ return null; }
+      }, function(){ return null; });
+    }
     return fetch(API + '?room=' + encodeURIComponent(room), { headers:{ 'accept':'application/json' } })
       .then(function(res){
         if(!res.ok) throw new Error('http ' + res.status);
@@ -291,6 +301,13 @@
 
   // 成功: {ok:true}／競合: {conflict:true, state:最新}／失敗は reject
   function writeRemote(next){
+    if(artifactStore){
+      // Artifact 側には競合検知がないので、読み直し→当て直しだけで整合を取る
+      return artifactStore.set(cacheKey(), JSON.stringify(next), true).then(function(){
+        offline = false;
+        return { ok:true };
+      });
+    }
     return fetch(API + '?room=' + encodeURIComponent(room), {
       method:'PUT',
       headers:{ 'content-type':'application/json' },
