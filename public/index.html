@@ -61,11 +61,13 @@
     border-radius:7px;padding:6px 8px;font-family:inherit;font-size:12px;
     letter-spacing:.1em;text-transform:uppercase;min-height:32px;
   }
-  #copyLink{
+  #copyLink,#syncToggle{
     appearance:none;cursor:pointer;font-family:inherit;font-size:12px;font-weight:700;
     background:var(--navy-3);color:#C7CEE4;border:1px solid var(--line);
     border-radius:7px;padding:6px 10px;min-height:32px;flex:0 0 auto;
   }
+  #syncToggle[aria-pressed="false"]{color:#F3B6B1;border-color:rgba(228,87,76,.5);}
+  #copyLink:disabled{opacity:.4;cursor:default;}
 
   /* scoreboard */
   .board{
@@ -114,7 +116,7 @@
     font-size:18px;min-width:34px;min-height:44px;flex:0 0 auto;
   }
   .del:hover{color:var(--red);}
-  .btn:focus-visible,.del:focus-visible,#copyLink:focus-visible{outline:3px solid #fff;outline-offset:2px;}
+  .btn:focus-visible,.del:focus-visible,#copyLink:focus-visible,#syncToggle:focus-visible{outline:3px solid #fff;outline-offset:2px;}
 
   /* controls */
   .controls{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;}
@@ -143,6 +145,7 @@
   <div class="syncbar">
     <span class="dot" id="dot"></span>
     <span id="syncText">接続中…</span>
+    <button id="syncToggle" type="button" aria-pressed="true">同期 ON</button>
     <button id="copyLink" type="button">リンクをコピー</button>
     <span class="room">
       <label for="room">ルーム</label>
@@ -167,7 +170,8 @@
   </div>
 
   <div class="note" id="note">
-    同じルーム名を開いた全員の画面で、ニックネームとカウントが共有されます。誰かが押した数字は数秒で他の端末にも反映されます。共有ルームの内容はこのアプリを開いた人全員が見られるので、名前は当日のニックネームだけにしてください。イベントごとにルーム名を変えると混ざりません。
+    同じルーム名を開いた全員の画面で、ニックネームとカウントが共有されます。誰かが押した数字は数秒で他の端末にも反映されます。共有ルームの内容はこのアプリを開いた人全員が見られるので、名前は当日のニックネームだけにしてください。イベントごとにルーム名を変えると混ざりません。<br>
+    「同期 OFF」にすると通信を止めて、この端末だけで数えられます。ON に戻すときに、この端末の内容を共有するか、共有ルーム側に合わせるかを選べます。
   </div>
 
 </div>
@@ -181,12 +185,15 @@
 
   var room = DEFAULT_ROOM;
   var state = { rev:0, players:[] };
+  var committed = { rev:0, players:[] }; // 確定済みの状態（画面先行の加算を含まない）
   var history = [];
   var queue = [];
   var running = false;
   var nameTimer = null;
   var offline = false;
   var booting = false;
+  var syncOn = true;      // 同期 ON/OFF（この端末の設定として保存する）
+  var localEdits = false; // OFF の間にこの端末で変更したか
 
   var els = {
     rows: document.getElementById('rows'),
@@ -198,8 +205,15 @@
     dot: document.getElementById('dot'),
     syncText: document.getElementById('syncText'),
     room: document.getElementById('room'),
-    copyLink: document.getElementById('copyLink')
+    copyLink: document.getElementById('copyLink'),
+    syncToggle: document.getElementById('syncToggle')
   };
+
+  // 確定した状態を入れる。以後の変更はこれを土台に当て直す
+  function setState(next){
+    state = next;
+    committed = clone(next);
+  }
 
   function uid(){ return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function clone(o){ return JSON.parse(JSON.stringify(o)); }
@@ -216,6 +230,8 @@
     return v || DEFAULT_ROOM;
   }
 
+  function syncedText(){ return 'クラウド同期中（ルーム ' + room + '）'; }
+
   function setSync(mode, text){
     els.dot.className = 'dot' + (mode ? ' ' + mode : '');
     els.syncText.textContent = text;
@@ -223,6 +239,33 @@
 
   /* ---------- storage ---------- */
   var cacheKey = function(){ return 'keigo:room:' + room; };
+  var PREF_KEY = 'keigo:sync';
+  var dirtyKey = function(){ return 'keigo:dirty:' + room; };
+
+  // 「同期オフ中にこの端末で変更した」印。再読み込みしても残す
+  function readDirty(){
+    try { return localStorage.getItem(dirtyKey()) === '1'; } catch(e){ return false; }
+  }
+  function writeDirty(v){
+    try {
+      if(v) localStorage.setItem(dirtyKey(), '1');
+      else localStorage.removeItem(dirtyKey());
+    } catch(e){}
+  }
+
+  function readPref(){
+    try { return localStorage.getItem(PREF_KEY) !== 'off'; } catch(e){ return true; }
+  }
+  function writePref(on){
+    try { localStorage.setItem(PREF_KEY, on ? 'on' : 'off'); } catch(e){}
+  }
+
+  function paintToggle(){
+    els.syncToggle.textContent = syncOn ? '同期 ON' : '同期 OFF';
+    els.syncToggle.setAttribute('aria-pressed', syncOn ? 'true' : 'false');
+    els.syncToggle.setAttribute('aria-label', syncOn ? '同期を止めてこの端末だけで使う' : '同期を再開して共有ルームに戻る');
+    els.copyLink.disabled = !syncOn;
+  }
 
   function readCache(){
     try {
@@ -265,8 +308,24 @@
   }
 
   function commit(mutate){
+    if(!syncOn){
+      applyLocal(mutate);
+      return;
+    }
     queue.push(mutate);
     pump();
+  }
+
+  // 同期 OFF 中。サーバには触らず、この端末の状態だけを進める
+  function applyLocal(mutate){
+    var next = mutate(clone(committed));
+    next.rev = (state.rev || 0) + 1;
+    setState(next);
+    localEdits = true;
+    writeDirty(true);
+    render();
+    writeCache(next);
+    setSync('', '同期オフ（この端末のみ）');
   }
 
   function pump(){
@@ -283,20 +342,20 @@
   // 最新版を読んでから mutate を当て直すので、競合しても他端末の更新を消さない
   function attempt(mutate, tries){
     return readRemote().catch(function(){ return null; }).then(function(remote){
-      var base = (remote && typeof remote.rev === 'number' && remote.rev >= (state.rev || 0)) ? remote : clone(state);
+      var base = (remote && typeof remote.rev === 'number' && remote.rev >= (state.rev || 0)) ? remote : clone(committed);
       var next = mutate(base);
       next.rev = Math.max(base.rev || 0, state.rev || 0) + 1;
-      state = next;
+      setState(next);
       render();
       writeCache(next);
       return writeRemote(next).then(function(res){
         if(res.conflict){
-          if(res.state){ state = res.state; render(); writeCache(res.state); }
+          if(res.state){ setState(res.state); render(); writeCache(res.state); }
           if(tries < 3) return attempt(mutate, tries + 1);
           setSync('err', '同期できませんでした');
           return;
         }
-        setSync('on', 'クラウド同期中（ルーム ' + room + '）');
+        setSync('on', syncedText());
       }, function(){
         offline = true;
         setSync('err', 'オフライン中（この端末に保存）');
@@ -305,14 +364,14 @@
   }
 
   function poll(){
-    if(running || queue.length || booting) return;
+    if(!syncOn || running || queue.length || booting) return;
     readRemote().then(function(remote){
       if(remote && (remote.rev || 0) > (state.rev || 0)){
-        state = remote;
+        setState(remote);
         render();
         writeCache(remote);
       }
-      setSync('on', 'クラウド同期中（ルーム ' + room + '）');
+      setSync('on', syncedText());
     }, function(){
       offline = true;
       setSync('err', 'オフライン中（この端末に保存）');
@@ -503,10 +562,62 @@
     setRoomInUrl(v);
     history = []; els.undo.disabled = true;
     queue = [];
-    state = { rev:0, players:[] };
+    setState({ rev:0, players:[] });
     els.rows.innerHTML = '';
     boot();
   });
+
+  els.syncToggle.addEventListener('click', function(){
+    if(syncOn){ stopSync(); } else { startSync(); }
+  });
+
+  function stopSync(){
+    syncOn = false;
+    writePref(false);
+    localEdits = false;
+    writeDirty(false);
+    queue = [];
+    paintToggle();
+    writeCache(state);
+    setSync('', '同期オフ（この端末のみ）');
+  }
+
+  function startSync(){
+    syncOn = true;
+    writePref(true);
+    paintToggle();
+    setSync('', '共有ルーム「' + room + '」に接続中…');
+
+    var mine = clone(state);
+    var hadLocalEdits = localEdits || readDirty();
+    var pushMine = function(){
+      commit(function(){ return { rev:0, players: clone(mine.players) }; });
+    };
+    var adopt = function(remote){
+      setState(remote);
+      render();
+      writeCache(remote);
+      setSync('on', syncedText());
+    };
+
+    readRemote().then(function(remote){
+      localEdits = false;
+      writeDirty(false);
+      if(!remote || !remote.players || !remote.players.length){
+        pushMine();
+        return;
+      }
+      // オフの間に触っていなければ、黙って共有ルーム側に合わせる
+      if(!hadLocalEdits){ adopt(remote); return; }
+      var keepMine = window.confirm(
+        '同期を再開します。\n\nOK：この端末の内容を共有ルームに反映する\nキャンセル：共有ルーム側の内容に合わせる'
+      );
+      if(keepMine){ pushMine(); } else { adopt(remote); }
+    }, function(){
+      offline = true;
+      setSync('err', 'オフライン中（この端末に保存）');
+    });
+  }
 
   els.copyLink.addEventListener('click', function(){
     var url = location.origin + location.pathname + '?room=' + encodeURIComponent(room);
@@ -530,25 +641,33 @@
 
   /* ---------- boot ---------- */
   function boot(){
+    if(!syncOn){
+      var saved = readCache();
+      setState((saved && saved.players && saved.players.length) ? saved : blank());
+      render();
+      writeCache(state);
+      setSync('', '同期オフ（この端末のみ）');
+      return;
+    }
     booting = true;
     setSync('', 'ルーム「' + room + '」を読み込み中…');
     readRemote().then(function(remote){
       booting = false;
       if(remote && remote.players && remote.players.length){
-        state = remote;
+        setState(remote);
         render();
         writeCache(remote);
-        setSync('on', 'クラウド同期中（ルーム ' + room + '）');
+        setSync('on', syncedText());
       } else {
         var seed = blank();
-        state = { rev:0, players:[] };
+        setState({ rev:0, players:[] });
         commit(function(){ return seed; });
       }
     }, function(){
       booting = false;
       offline = true;
       var cached = readCache();
-      state = (cached && cached.players && cached.players.length) ? cached : blank();
+      setState((cached && cached.players && cached.players.length) ? cached : blank());
       render();
       setSync('err', 'オフライン中（この端末に保存）');
     });
@@ -557,6 +676,8 @@
   var params = new URLSearchParams(location.search);
   room = normalizeRoom(params.get('room') || DEFAULT_ROOM);
   els.room.value = room;
+  syncOn = readPref();
+  paintToggle();
 
   boot();
   setInterval(poll, POLL_MS);
