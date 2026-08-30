@@ -73,14 +73,11 @@
   .board{
     background:linear-gradient(180deg,var(--navy-2),rgba(24,36,83,.55));
     border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px;
-    display:flex;align-items:center;gap:16px;
+    display:flex;align-items:center;justify-content:center;gap:16px;
   }
   .total{flex:0 0 auto;text-align:center;}
   .total b{display:block;font-size:38px;line-height:1;font-weight:800;color:var(--card);}
   .total span{font-size:10px;color:var(--muted);letter-spacing:.16em;}
-  .king{border-left:1px solid var(--line);padding-left:16px;min-width:0;}
-  .king .lab{font-size:10px;color:var(--card);letter-spacing:.18em;font-weight:700;}
-  .king .val{font-size:17px;font-weight:700;overflow-wrap:anywhere;}
 
   /* rows */
   #rows{display:flex;flex-direction:column;gap:8px;}
@@ -155,10 +152,6 @@
 
   <div class="board">
     <div class="total"><b id="total">0</b><span>TOTAL</span></div>
-    <div class="king">
-      <div class="lab">本日の敬語王</div>
-      <div class="val" id="king">まだ全員セーフ</div>
-    </div>
   </div>
 
   <div id="rows"></div>
@@ -198,7 +191,6 @@
   var els = {
     rows: document.getElementById('rows'),
     total: document.getElementById('total'),
-    king: document.getElementById('king'),
     add: document.getElementById('add'),
     undo: document.getElementById('undo'),
     reset: document.getElementById('reset'),
@@ -224,7 +216,6 @@
       {id:uid(), name:'', count:0}
     ]};
   }
-  function label(p, i){ return (p.name && p.name.trim()) ? p.name.trim() : '参加者' + (i+1); }
   function normalizeRoom(v){
     v = (v || '').trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '').slice(0, 10);
     return v || DEFAULT_ROOM;
@@ -522,15 +513,6 @@
   function paintBoard(){
     var total = state.players.reduce(function(s,p){ return s + p.count; }, 0);
     els.total.textContent = total;
-    var max = 0;
-    state.players.forEach(function(p){ if(p.count > max) max = p.count; });
-    if(max === 0){
-      els.king.textContent = 'まだ全員セーフ';
-    } else {
-      var names = state.players.map(function(p,i){ return {n:label(p,i), c:p.count}; })
-        .filter(function(x){ return x.c === max; }).map(function(x){ return x.n; });
-      els.king.textContent = names.join('・') + '（' + max + '回）';
-    }
     state.players.forEach(function(p){ paintRow(p.id); });
   }
 
